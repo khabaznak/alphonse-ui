@@ -11,9 +11,9 @@
   --border-0: #242a35;
 
   /* Typography roles (placeholders). */
-  --font-body: "Unset";
-  --font-system: "Unset";
-  --font-code: "Unset";
+  --font-body: "Inter", "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  --font-system: "Inter", "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  --font-code: "SF Mono", "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
 
   --radius-0: 10px;
   --radius-1: 14px;
