@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel" id="snapshots-archive" hx-get="/fragments/snapshots" hx-trigger="load, every 60s" hx-swap="innerHTML">
+  <div class="panel-title">Snapshots</div>
+  <div class="panel-body">Loading...</div>
+</section>
+{% endblock %}

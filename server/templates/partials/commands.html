@@ -1,0 +1,14 @@
+<div class="panel-title">Command Console</div>
+<div class="panel-body">
+  <form class="form" hx-post="/commands/submit" hx-target="#command-result" hx-swap="innerHTML">
+    <label class="field">
+      <span class="field-label">Command</span>
+      <input type="text" name="command" placeholder="Explicit action" />
+    </label>
+    <button class="button" type="submit">Send Command</button>
+  </form>
+  <div id="command-result" class="panel-subtle">
+    <div class="panel-subtle-title">Last command</div>
+    <div class="panel-subtle-body">No command sent yet.</div>
+  </div>
+</div>

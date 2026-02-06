@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="grid">
+  <section class="panel" id="status-panel" hx-get="/fragments/status" hx-trigger="load, every 20s" hx-swap="innerHTML">
+    <div class="panel-title">State Snapshot</div>
+    <div class="panel-body">Loading...</div>
+  </section>
+  <section class="panel" id="events-panel" hx-get="/fragments/events" hx-trigger="load, every 30s" hx-swap="innerHTML">
+    <div class="panel-title">Latest Events</div>
+    <div class="panel-body">Loading...</div>
+  </section>
+  <section class="panel" id="commands-panel" hx-get="/fragments/commands" hx-trigger="load" hx-swap="innerHTML">
+    <div class="panel-title">Quick Command</div>
+    <div class="panel-body">Loading...</div>
+  </section>
+</div>
+{% endblock %}
