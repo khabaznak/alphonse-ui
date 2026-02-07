@@ -62,6 +62,7 @@ AGENTS.md                 Agent–UI contract
 - `AlphonseClient` in `server/app.py` calls Alphonse API over HTTP.
 - Chat command dispatch uses `POST /agent/message`.
 - Presence snapshots use `GET /agent/status`.
+- Delegate routes attempt backend APIs first (`/api/v1/delegates*`, then transitional `/delegates*`), with local fallback while backend contract is finalized.
 - Messages are stored in-memory for dev only and will reset on restart.
 - If Alphonse API is unreachable, chat remains usable and UI shows degraded-state status/events.
 

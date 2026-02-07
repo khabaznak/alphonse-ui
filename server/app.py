@@ -5,7 +5,7 @@ import os
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 from urllib import error, request as urlrequest
 
 from flask import Flask, Response, redirect, render_template, request, url_for
@@ -81,13 +81,62 @@ class AlphonseClient:
             "note": "Alphonse API connected",
         }
 
+    def list_delegates(self) -> Optional[List[Dict[str, object]]]:
+        # Preferred target for the new backend contract.
+        payload = self._request_json("GET", "/api/v1/delegates", payload=None, timeout=3.0)
+        delegates = self._extract_delegate_list(payload)
+        if delegates is not None:
+            return delegates
+        # Transitional fallback while backend routes are being finalized.
+        payload = self._request_json("GET", "/delegates", payload=None, timeout=3.0)
+        return self._extract_delegate_list(payload)
+
+    def get_delegate(self, delegate_id: str) -> Optional[Dict[str, object]]:
+        payload = self._request_json("GET", f"/api/v1/delegates/{delegate_id}", payload=None, timeout=3.0)
+        delegate = self._extract_delegate(payload)
+        if delegate is not None:
+            return delegate
+        payload = self._request_json("GET", f"/delegates/{delegate_id}", payload=None, timeout=3.0)
+        return self._extract_delegate(payload)
+
+    def assign_delegate(
+        self,
+        delegate_id: str,
+        capability: str,
+        command: str,
+        correlation_id: str,
+    ) -> Dict[str, object]:
+        payload = {
+            "capability": capability,
+            "command": command,
+            "correlation_id": correlation_id,
+            "timestamp": time.time(),
+        }
+        response = self._request_json(
+            "POST",
+            f"/api/v1/delegates/{delegate_id}/assign",
+            payload=payload,
+            timeout=5.0,
+        )
+        if response is not None:
+            return {"ok": True, "status": "assigned", "data": response}
+        response = self._request_json(
+            "POST",
+            f"/delegates/{delegate_id}/assign",
+            payload=payload,
+            timeout=5.0,
+        )
+        if response is not None:
+            return {"ok": True, "status": "assigned", "data": response}
+        return {"ok": False, "status": "unavailable"}
+
     def _request_json(
         self,
         method: str,
         path: str,
         payload: Optional[Dict[str, object]],
         timeout: float,
-    ) -> Optional[Dict[str, object]]:
+    ) -> Optional[Any]:
         url = f"{self.base_url}{path}"
         body = None
         if payload is not None:
@@ -104,17 +153,37 @@ class AlphonseClient:
                 parsed = json.loads(raw)
                 if isinstance(parsed, dict):
                     data = parsed.get("data")
-                    if isinstance(data, dict):
+                    if data is not None:
                         return data
+                    return parsed
+                if isinstance(parsed, list):
                     return parsed
         except (error.URLError, error.HTTPError, TimeoutError, json.JSONDecodeError):
             return None
         return None
 
+    def _extract_delegate_list(self, payload: Optional[Any]) -> Optional[List[Dict[str, object]]]:
+        if isinstance(payload, list):
+            return [item for item in payload if isinstance(item, dict)]
+        if isinstance(payload, dict):
+            candidates = payload.get("delegates")
+            if isinstance(candidates, list):
+                return [item for item in candidates if isinstance(item, dict)]
+        return None
+
+    def _extract_delegate(self, payload: Optional[Any]) -> Optional[Dict[str, object]]:
+        if isinstance(payload, dict):
+            if "id" in payload and "name" in payload:
+                return payload
+            candidate = payload.get("delegate")
+            if isinstance(candidate, dict):
+                return candidate
+        return None
+
 
 ALPHONSE = AlphonseClient()
 CHAT_TIMELINE: List[Dict[str, object]] = []
-DELEGATES: Dict[str, Delegate] = {
+LOCAL_DELEGATES: Dict[str, Delegate] = {
     "ops-runner": Delegate(
         id="ops-runner",
         name="Ops Runner",
@@ -238,8 +307,9 @@ def nav_sections() -> List[Dict[str, object]]:
 
 
 def external_sections() -> List[Dict[str, object]]:
+    delegates = get_delegate_registry()
     delegate_items = [
-        f"{delegate.name} ({delegate.status})" for delegate in DELEGATES.values()
+        f"{delegate.name} ({delegate.status})" for delegate in delegates.values()
     ]
     return [
         {
@@ -292,6 +362,45 @@ def page_context(title: str, show_context: bool = False) -> Dict[str, object]:
     }
 
 
+def _parse_delegate(raw: Dict[str, object]) -> Optional[Delegate]:
+    delegate_id = str(raw.get("id") or "").strip()
+    name = str(raw.get("name") or "").strip()
+    if not delegate_id or not name:
+        return None
+    capabilities_raw = raw.get("capabilities")
+    capabilities: List[str] = []
+    if isinstance(capabilities_raw, list):
+        capabilities = [str(item).strip() for item in capabilities_raw if str(item).strip()]
+    contract_version = str(raw.get("contract_version") or "delegate.v1")
+    pricing_model = raw.get("pricing_model")
+    pricing_model_str = str(pricing_model) if pricing_model is not None else None
+    status = str(raw.get("status") or "unknown")
+    last_seen = str(raw.get("last_seen") or now_iso())
+    return Delegate(
+        id=delegate_id,
+        name=name,
+        capabilities=capabilities,
+        contract_version=contract_version,
+        pricing_model=pricing_model_str,
+        status=status,
+        last_seen=last_seen,
+    )
+
+
+def get_delegate_registry() -> Dict[str, Delegate]:
+    remote = ALPHONSE.list_delegates()
+    if remote:
+        parsed = {
+            delegate.id: delegate
+            for item in remote
+            for delegate in [ _parse_delegate(item) ]
+            if delegate is not None
+        }
+        if parsed:
+            return parsed
+    return LOCAL_DELEGATES
+
+
 @app.get("/")
 def root() -> Response:
     return redirect(url_for("chat"))
@@ -315,13 +424,18 @@ def integrations() -> str:
 
 @app.get("/delegates")
 def delegates_list() -> str:
-    delegates = list(DELEGATES.values())
+    delegates = list(get_delegate_registry().values())
     return render_template("delegates.html", delegates=delegates, **page_context("Delegates"))
 
 
 @app.get("/delegates/<delegate_id>")
 def delegate_details(delegate_id: str) -> str:
-    delegate = DELEGATES.get(delegate_id)
+    delegates = get_delegate_registry()
+    delegate = delegates.get(delegate_id)
+    if not delegate:
+        remote = ALPHONSE.get_delegate(delegate_id)
+        if isinstance(remote, dict):
+            delegate = _parse_delegate(remote)
     if not delegate:
         return render_template("delegates_detail.html", delegate=None, **page_context("Delegate")), 404
     return render_template("delegates_detail.html", delegate=delegate, **page_context(f"Delegate · {delegate.name}"))
@@ -329,10 +443,15 @@ def delegate_details(delegate_id: str) -> str:
 
 @app.post("/delegates/<delegate_id>/assign")
 def delegate_assign(delegate_id: str) -> Response:
-    delegate = DELEGATES.get(delegate_id)
+    delegates = get_delegate_registry()
+    delegate = delegates.get(delegate_id)
     correlation_id = ensure_correlation_id(request.form.get("correlation_id"))
     if not delegate:
-        response = Response("Delegate not found", status=404)
+        remote = ALPHONSE.get_delegate(delegate_id)
+        if isinstance(remote, dict):
+            delegate = _parse_delegate(remote)
+    if not delegate:
+        response = Response("Delegate not found in UI or backend API", status=404)
         response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["command_failed"]
         return with_contract_headers(response, correlation_id, ok=False)
 
@@ -342,19 +461,24 @@ def delegate_assign(delegate_id: str) -> Response:
         response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["command_failed"]
         return with_contract_headers(response, correlation_id, ok=False)
 
-    capability = request.form.get("capability", "").strip() or delegate.capabilities[0]
+    fallback_capability = delegate.capabilities[0] if delegate.capabilities else "unspecified"
+    capability = request.form.get("capability", "").strip() or fallback_capability
+    assign_result = ALPHONSE.assign_delegate(delegate.id, capability, command, correlation_id)
+    assigned = bool(assign_result.get("ok"))
     card = DelegationCard(
         delegate_id=delegate.id,
         delegate_name=delegate.name,
         capability=capability,
         command=command,
-        status="assigned",
+        status="assigned" if assigned else "queued_local",
         timestamp=now_iso(),
         correlation_id=correlation_id,
     )
     CHAT_TIMELINE.append({"type": "delegation", "delegation": card})
     response = Response(render_template("partials/delegation_assignment_result.html", delegation=card))
-    response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["delegation_assigned"]
+    response.headers["X-UI-Event-Type"] = (
+        UI_EVENT_TYPES["delegation_assigned"] if assigned else UI_EVENT_TYPES["command_failed"]
+    )
     return with_contract_headers(response, correlation_id, ok=True)
 
 
