@@ -17,6 +17,7 @@ This repo provides the initial scaffolding and HTMX skeleton:
 - Left internal navigation with collapsible sections.
 - Right contextual panel for external world (hidden by default).
 - HTMX endpoints for chat timeline and presence placeholder.
+- Optional presence island using SSE with HTMX polling fallback.
 - In-memory chat messages for local development only.
 
 ## How To Run
@@ -46,6 +47,7 @@ server/
       presence.html       Presence fragment
   static/
     css/app.css           Token-based styles (placeholder)
+    js/presence_island.js Optional SSE island scoped to #presence-island
 requirements.txt
 AGENTS.md                 Agent–UI contract
 ```
@@ -55,3 +57,13 @@ AGENTS.md                 Agent–UI contract
 - No real Alphonse connectivity is implemented yet.
 - `AlphonseClient` in `server/app.py` is a stub for future HTTP/WS/SSE transport.
 - Messages are stored in-memory for dev only and will reset on restart.
+
+## Presence Island
+
+- SSE endpoint: `GET /stream/presence` (`text/event-stream`).
+- The client module mounts only to `#presence-island` in `chat.html`.
+- No global state, routing, or framework usage.
+- Fallback behavior:
+  - If `EventSource` is unavailable, `#presence-island` switches to HTMX polling.
+  - Polling uses `GET /ui/presence` every 20 seconds.
+  - If SSE disconnects/errors, the same HTMX polling fallback is activated.

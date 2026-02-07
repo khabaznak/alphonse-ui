@@ -12,11 +12,8 @@
 <div class="chat-layout">
   <section class="panel">
     <div class="panel-title">Presence</div>
-    <div class="panel-body" hx-get="/ui/presence" hx-trigger="load, every 20s" hx-swap="innerHTML">
+    <div id="presence-island" class="panel-body" hx-get="/ui/presence" hx-trigger="load" hx-swap="innerHTML">
       Loading presence...
-    </div>
-    <div class="island-mount" data-island="presence-stream">
-      <div class="island-note">Presence stream mount (reserved)</div>
     </div>
   </section>
 
@@ -40,4 +37,8 @@
     </form>
   </section>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/presence_island.js" defer></script>
 {% endblock %}

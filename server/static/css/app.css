@@ -292,6 +292,29 @@ textarea {
   font-family: var(--font-code);
 }
 
+.presence {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.presence-row {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.presence-label {
+  font-family: var(--font-system);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-2);
+}
+
+.presence-value {
+  font-size: 0.9rem;
+  color: var(--ink-1);
+}
+
 .sidebar-right-header {
   margin-bottom: var(--space-3);
 }

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 from flask import Flask, Response, redirect, render_template, request, url_for
 
@@ -236,6 +238,29 @@ def ui_presence() -> str:
     response = Response(render_template("partials/presence.html", presence=presence, now=now_iso()))
     response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["presence_update"]
     return with_contract_headers(response, ensure_correlation_id())
+
+
+@app.get("/stream/presence")
+def stream_presence() -> Response:
+    def generate() -> Iterable[str]:
+        while True:
+            payload = {
+                "event_type": UI_EVENT_TYPES["presence_update"],
+                "timestamp": now_iso(),
+                "presence": ALPHONSE.presence_snapshot(),
+            }
+            yield "event: presence\n"
+            yield f"data: {json.dumps(payload)}\n\n"
+            time.sleep(10)
+
+    return Response(
+        generate(),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 if __name__ == "__main__":
