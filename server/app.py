@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import json
-import os
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, List, Optional
-from urllib import error, request as urlrequest
+from typing import Dict, Iterable, List, Optional
 
 from flask import Flask, Response, redirect, render_template, request, url_for
+from server.clients.alphonse_api import AlphonseClient
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 
@@ -41,144 +40,6 @@ class DelegationCard:
     status: str
     timestamp: str
     correlation_id: str
-
-
-class AlphonseClient:
-    """HTTP adapter for Alphonse agent API."""
-
-    def __init__(self) -> None:
-        self.base_url = os.getenv("ALPHONSE_API_BASE_URL", "http://127.0.0.1:8001").rstrip("/")
-        token = os.getenv("ALPHONSE_API_TOKEN", "").strip()
-        self.api_token = token or None
-
-    def send_message(self, content: str, correlation_id: str) -> Dict[str, object]:
-        payload = {
-            "text": content,
-            "channel": "webui",
-            "timestamp": time.time(),
-            "correlation_id": correlation_id,
-            "metadata": {"source": "alphonse-ui"},
-        }
-        data = self._request_json("POST", "/agent/message", payload=payload, timeout=5.0)
-        if data is None:
-            return {"ok": False, "status": "unavailable", "correlation_id": correlation_id}
-        return {"ok": True, "status": "accepted", "correlation_id": correlation_id, "data": data}
-
-    def presence_snapshot(self) -> Dict[str, str]:
-        data = self._request_json("GET", "/agent/status", payload=None, timeout=3.0)
-        if data is None:
-            return {
-                "status": "disconnected",
-                "note": "Alphonse API unavailable",
-            }
-        runtime = data.get("runtime")
-        if isinstance(runtime, dict):
-            state = str(runtime.get("state") or runtime.get("status") or "connected")
-        else:
-            state = "connected"
-        return {
-            "status": state,
-            "note": "Alphonse API connected",
-        }
-
-    def list_delegates(self) -> Optional[List[Dict[str, object]]]:
-        # Preferred target for the new backend contract.
-        payload = self._request_json("GET", "/api/v1/delegates", payload=None, timeout=3.0)
-        delegates = self._extract_delegate_list(payload)
-        if delegates is not None:
-            return delegates
-        # Transitional fallback while backend routes are being finalized.
-        payload = self._request_json("GET", "/delegates", payload=None, timeout=3.0)
-        return self._extract_delegate_list(payload)
-
-    def get_delegate(self, delegate_id: str) -> Optional[Dict[str, object]]:
-        payload = self._request_json("GET", f"/api/v1/delegates/{delegate_id}", payload=None, timeout=3.0)
-        delegate = self._extract_delegate(payload)
-        if delegate is not None:
-            return delegate
-        payload = self._request_json("GET", f"/delegates/{delegate_id}", payload=None, timeout=3.0)
-        return self._extract_delegate(payload)
-
-    def assign_delegate(
-        self,
-        delegate_id: str,
-        capability: str,
-        command: str,
-        correlation_id: str,
-    ) -> Dict[str, object]:
-        payload = {
-            "capability": capability,
-            "command": command,
-            "correlation_id": correlation_id,
-            "timestamp": time.time(),
-        }
-        response = self._request_json(
-            "POST",
-            f"/api/v1/delegates/{delegate_id}/assign",
-            payload=payload,
-            timeout=5.0,
-        )
-        if response is not None:
-            return {"ok": True, "status": "assigned", "data": response}
-        response = self._request_json(
-            "POST",
-            f"/delegates/{delegate_id}/assign",
-            payload=payload,
-            timeout=5.0,
-        )
-        if response is not None:
-            return {"ok": True, "status": "assigned", "data": response}
-        return {"ok": False, "status": "unavailable"}
-
-    def _request_json(
-        self,
-        method: str,
-        path: str,
-        payload: Optional[Dict[str, object]],
-        timeout: float,
-    ) -> Optional[Any]:
-        url = f"{self.base_url}{path}"
-        body = None
-        if payload is not None:
-            body = json.dumps(payload).encode("utf-8")
-        req = urlrequest.Request(url, data=body, method=method)
-        req.add_header("Accept", "application/json")
-        if payload is not None:
-            req.add_header("Content-Type", "application/json")
-        if self.api_token:
-            req.add_header("x-alphonse-api-token", self.api_token)
-        try:
-            with urlrequest.urlopen(req, timeout=timeout) as resp:
-                raw = resp.read().decode("utf-8")
-                parsed = json.loads(raw)
-                if isinstance(parsed, dict):
-                    data = parsed.get("data")
-                    if data is not None:
-                        return data
-                    return parsed
-                if isinstance(parsed, list):
-                    return parsed
-        except (error.URLError, error.HTTPError, TimeoutError, json.JSONDecodeError):
-            return None
-        return None
-
-    def _extract_delegate_list(self, payload: Optional[Any]) -> Optional[List[Dict[str, object]]]:
-        if isinstance(payload, list):
-            return [item for item in payload if isinstance(item, dict)]
-        if isinstance(payload, dict):
-            candidates = payload.get("delegates")
-            if isinstance(candidates, list):
-                return [item for item in candidates if isinstance(item, dict)]
-        return None
-
-    def _extract_delegate(self, payload: Optional[Any]) -> Optional[Dict[str, object]]:
-        if isinstance(payload, dict):
-            if "id" in payload and "name" in payload:
-                return payload
-            candidate = payload.get("delegate")
-            if isinstance(candidate, dict):
-                return candidate
-        return None
 
 
 ALPHONSE = AlphonseClient()
@@ -393,7 +254,7 @@ def get_delegate_registry() -> Dict[str, Delegate]:
         parsed = {
             delegate.id: delegate
             for item in remote
-            for delegate in [ _parse_delegate(item) ]
+            for delegate in [_parse_delegate(item)]
             if delegate is not None
         }
         if parsed:

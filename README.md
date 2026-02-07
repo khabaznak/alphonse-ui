@@ -40,6 +40,8 @@ Open `http://localhost:5001`.
 ```
 server/
   app.py                  Flask routes + HTMX endpoints
+  clients/
+    alphonse_api.py       Alphonse HTTP adapter + response validation
   templates/
     base.html             Shell layout
     chat.html             Main plaza
@@ -59,7 +61,8 @@ AGENTS.md                 Agent–UI contract
 
 ## Notes
 
-- `AlphonseClient` in `server/app.py` calls Alphonse API over HTTP.
+- `AlphonseClient` in `server/clients/alphonse_api.py` calls Alphonse API over HTTP.
+- Adapter logic lives in `server/clients/alphonse_api.py` and validates response shape before routes consume data.
 - Chat command dispatch uses `POST /agent/message`.
 - Presence snapshots use `GET /agent/status`.
 - Delegate routes attempt backend APIs first (`/api/v1/delegates*`, then transitional `/delegates*`), with local fallback while backend contract is finalized.
