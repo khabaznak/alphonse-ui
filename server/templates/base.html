@@ -17,10 +17,10 @@
         <div class="sidebar-section">
           {% for section in nav_sections %}
           <details class="nav-group" open>
-            <summary class="nav-group-title">{{ section.title }}</summary>
+            <summary class="nav-group-title">{{ section["title"] }}</summary>
             <div class="nav-group-items">
-              {% for item in section.items %}
-              <a class="nav-link {% if item.path == path %}is-active{% endif %}" href="{{ item.path }}">{{ item.label }}</a>
+              {% for item in section["items"] %}
+              <a class="nav-link {% if item["path"] == path %}is-active{% endif %}" href="{{ item["path"] }}">{{ item["label"] }}</a>
               {% endfor %}
             </div>
           </details>
@@ -50,9 +50,9 @@
           {% block right_panel %}
           {% for section in external_sections %}
           <div class="context-group">
-            <div class="context-title">{{ section.title }}</div>
+            <div class="context-title">{{ section["title"] }}</div>
             <div class="context-items">
-              {% for item in section.items %}
+              {% for item in section["items"] %}
               <div class="context-item">{{ item }}</div>
               {% endfor %}
             </div>
