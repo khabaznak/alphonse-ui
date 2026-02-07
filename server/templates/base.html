@@ -9,29 +9,58 @@
   </head>
   <body>
     <div class="app-shell">
-      <aside class="app-nav" aria-label="Primary">
-        <div class="nav-header">
-          <div class="nav-title">Alphonse UI</div>
-          <div class="nav-meta">Instrument layer</div>
+      <aside class="sidebar-left" aria-label="Internal navigation">
+        <div class="brand">
+          <div class="brand-title">Alphonse UI</div>
+          <div class="brand-meta">Interface organ</div>
         </div>
-        <nav class="nav-list">
-          {% for item in nav_items %}
-          <a class="nav-link {% if item.path == path %}is-active{% endif %}" href="{{ item.path }}">
-            <span class="nav-label">{{ item.label }}</span>
-          </a>
+        <div class="sidebar-section">
+          {% for section in nav_sections %}
+          <details class="nav-group" open>
+            <summary class="nav-group-title">{{ section.title }}</summary>
+            <div class="nav-group-items">
+              {% for item in section.items %}
+              <a class="nav-link {% if item.path == path %}is-active{% endif %}" href="{{ item.path }}">{{ item.label }}</a>
+              {% endfor %}
+            </div>
+          </details>
           {% endfor %}
-        </nav>
+        </div>
       </aside>
-      <main class="app-main">
+
+      <main class="main-content">
         <header class="page-header">
-          <div class="page-title">{{ title }}</div>
-          <div class="page-meta">Last rendered {{ now }}</div>
+          <div>
+            <div class="page-title">{{ title }}</div>
+            <div class="page-meta">Last rendered {{ now }}</div>
+          </div>
+          {% block header_actions %}{% endblock %}
         </header>
-        <section class="page-content">
+        <section class="page-body">
           {% block content %}{% endblock %}
         </section>
       </main>
+
+      <aside class="sidebar-right {% if not show_context %}is-hidden{% endif %}" aria-label="External context">
+        <div class="sidebar-right-header">
+          <div class="panel-title">External Context</div>
+          <div class="panel-subtitle">World-facing scope</div>
+        </div>
+        <div class="sidebar-right-body">
+          {% block right_panel %}
+          {% for section in external_sections %}
+          <div class="context-group">
+            <div class="context-title">{{ section.title }}</div>
+            <div class="context-items">
+              {% for item in section.items %}
+              <div class="context-item">{{ item }}</div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+          {% endblock %}
+        </div>
+      </aside>
     </div>
-    {% block islands %}{% endblock %}
   </body>
 </html>

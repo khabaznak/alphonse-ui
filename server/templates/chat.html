@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block header_actions %}
+  {% if show_context %}
+  <a class="button ghost" href="/chat">Hide Context</a>
+  {% else %}
+  <a class="button ghost" href="/chat?context=1">Show Context</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="chat-layout">
+  <section class="panel">
+    <div class="panel-title">Presence</div>
+    <div class="panel-body" hx-get="/ui/presence" hx-trigger="load, every 20s" hx-swap="innerHTML">
+      Loading presence...
+    </div>
+    <div class="island-mount" data-island="presence-stream">
+      <div class="island-note">Presence stream mount (reserved)</div>
+    </div>
+  </section>
+
+  <section class="panel chat-panel">
+    <div class="panel-title">Chat Timeline</div>
+    <div class="chat-timeline" id="chat-timeline" hx-get="/chat/timeline" hx-trigger="load" hx-swap="innerHTML">
+      Loading timeline...
+    </div>
+    <div class="island-mount" data-island="chat-stream">
+      <div class="island-note">Chat stream mount (optional)</div>
+    </div>
+    <form class="composer" hx-post="/chat/messages" hx-target="#chat-timeline" hx-swap="beforeend">
+      <label class="field">
+        <span class="field-label">Message</span>
+        <textarea name="message" rows="3" placeholder="Write a command or signal"></textarea>
+      </label>
+      <div class="composer-actions">
+        <button class="button" type="submit">Send</button>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}

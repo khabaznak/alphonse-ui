@@ -1,0 +1,7 @@
+{% if messages %}
+  {% for message in messages %}
+    {% include "partials/chat_message.html" %}
+  {% endfor %}
+{% else %}
+  <div class="empty-state">No messages yet.</div>
+{% endif %}

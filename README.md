@@ -1,19 +1,25 @@
 # Alphonse UI
 
-Server-first interface for the Alphonse system.
+Alphonse UI is an interface organ: an extremity (explicit commands), a sense (signals), and a ritual space (conversation + visibility). It is not the brain. It never decides, classifies intent, or owns durable state. All cognition, memory, planning, and persistence belong to Alphonse.
 
-This UI is an extremity (explicit commands), a sense (signals), and a ritual space (conversation + visibility). It never makes decisions or owns durable state. All cognition, memory, and persistence live in Alphonse.
+## Principles
 
-## Current State
+- Server-first UI (HTMX is the default interaction model).
+- Minimal JavaScript, no SPA, no global routing/state.
+- Client-side code only as isolated islands for time-based phenomena (chat/presence/voice/video).
+- The UI observes state; it does not interpret or persist.
 
-This repo contains the initial server-first UI skeleton:
+## Current Scope
 
-- Flask + Jinja2 templates
-- HTMX as the default interaction model
-- Two isolated client-side islands: chat stream and presence stream
-- Dark-first, high-legibility placeholder styling
+This repo provides the initial scaffolding and HTMX skeleton:
 
-## Run Locally
+- Main Chat screen as the central plaza.
+- Left internal navigation with collapsible sections.
+- Right contextual panel for external world (hidden by default).
+- HTMX endpoints for chat timeline and presence placeholder.
+- In-memory chat messages for local development only.
+
+## How To Run
 
 ```bash
 python -m venv .venv
@@ -29,42 +35,23 @@ Open `http://localhost:5001`.
 ```
 server/
   app.py                  Flask routes + HTMX endpoints
-  templates/              Jinja2 views
+  templates/
     base.html             Shell layout
-    *.html                Screen templates
-    partials/             HTMX fragments
+    chat.html             Main plaza
+    admin.html            Placeholder
+    integrations.html     Placeholder
+    partials/
+      chat_timeline.html  Timeline HTMX fragment
+      chat_message.html   Message fragment
+      presence.html       Presence fragment
   static/
-    css/app.css           Placeholder visual system
-    js/chat_island.js     Chat client island
-    js/presence_stream.js Presence stream island
+    css/app.css           Token-based styles (placeholder)
 requirements.txt
+AGENTS.md                 Agent–UI contract
 ```
 
-## Interaction Model
+## Notes
 
-- **Commands**: explicit user actions submitted via `/commands/submit`.
-- **Signals**: passive inputs via `/signals/submit`.
-- **Events / Snapshots**: rendered from `/fragments/*` (server-first placeholders for now).
-- **Streams**: EventSource endpoints `/stream/chat` and `/stream/presence` feed isolated islands.
-
-## UI Boundaries
-
-HTMX-only screens: Threshold, Command Console, Signals, Events, Snapshots, System.
-
-Client-side islands:
-- `chat_island.js` mounted at `[data-island="chat"]` on `/ritual`.
-- `presence_stream.js` mounted at `[data-island="presence"]` on `/presence`.
-
-Each island is self-contained and removable without breaking the server-rendered UI.
-
-## Contract (Draft)
-
-- UI sends **Commands** and **Signals**.
-- Alphonse emits **Events** and **Snapshots**.
-- UI observes and renders; it does not interpret or persist.
-
-## Next Steps
-
-- Wire HTMX fragments to the real agent transport.
-- Formalize the Agent–UI contract versioning.
-- Replace placeholder styles with final visual system tokens.
+- No real Alphonse connectivity is implemented yet.
+- `AlphonseClient` in `server/app.py` is a stub for future HTTP/WS/SSE transport.
+- Messages are stored in-memory for dev only and will reset on restart.
