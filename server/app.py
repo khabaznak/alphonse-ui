@@ -19,6 +19,28 @@ class ChatMessage:
     correlation_id: str
 
 
+@dataclass
+class Delegate:
+    id: str
+    name: str
+    capabilities: List[str]
+    contract_version: str
+    pricing_model: Optional[str]
+    status: str
+    last_seen: str
+
+
+@dataclass
+class DelegationCard:
+    delegate_id: str
+    delegate_name: str
+    capability: str
+    command: str
+    status: str
+    timestamp: str
+    correlation_id: str
+
+
 class AlphonseClient:
     """Stub adapter for future Alphonse connectivity."""
 
@@ -37,10 +59,40 @@ class AlphonseClient:
 
 
 ALPHONSE = AlphonseClient()
-CHAT_MESSAGES: List[ChatMessage] = []
+CHAT_TIMELINE: List[Dict[str, object]] = []
+DELEGATES: Dict[str, Delegate] = {
+    "ops-runner": Delegate(
+        id="ops-runner",
+        name="Ops Runner",
+        capabilities=["incident_triage", "deploy_checks", "status_digest"],
+        contract_version="delegate.v1",
+        pricing_model="per-task",
+        status="available",
+        last_seen=datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
+    ),
+    "home-sentinel": Delegate(
+        id="home-sentinel",
+        name="Home Sentinel",
+        capabilities=["presence_watch", "device_health", "quiet_hours_guard"],
+        contract_version="delegate.v1",
+        pricing_model=None,
+        status="busy",
+        last_seen=datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
+    ),
+    "memory-steward": Delegate(
+        id="memory-steward",
+        name="Memory Steward",
+        capabilities=["summary_pack", "habit_snapshot", "timeline_review"],
+        contract_version="delegate.v1",
+        pricing_model="monthly",
+        status="available",
+        last_seen=datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
+    ),
+}
 UI_EVENT_TYPES = {
     "presence_update": "ui.event.presence.update",
     "presence_idle": "ui.event.presence.idle",
+    "delegation_assigned": "ui.event.delegation.assigned",
     "command_received": "ui.command.received",
     "command_failed": "ui.command.failed",
 }
@@ -95,6 +147,7 @@ def nav_sections() -> List[Dict[str, object]]:
             "title": "Integrations",
             "items": [
                 {"label": "Integrations", "path": "/integrations"},
+                {"label": "Delegates", "path": "/delegates"},
             ],
         },
         {
@@ -131,6 +184,9 @@ def nav_sections() -> List[Dict[str, object]]:
 
 
 def external_sections() -> List[Dict[str, object]]:
+    delegate_items = [
+        f"{delegate.name} ({delegate.status})" for delegate in DELEGATES.values()
+    ]
     return [
         {
             "title": "Family",
@@ -158,7 +214,7 @@ def external_sections() -> List[Dict[str, object]]:
         },
         {
             "title": "Delegates",
-            "items": ["No context linked"],
+            "items": delegate_items or ["No delegates linked"],
         },
         {
             "title": "Contexts",
@@ -203,6 +259,51 @@ def integrations() -> str:
     return render_template("integrations.html", **page_context("Integrations"))
 
 
+@app.get("/delegates")
+def delegates_list() -> str:
+    delegates = list(DELEGATES.values())
+    return render_template("delegates.html", delegates=delegates, **page_context("Delegates"))
+
+
+@app.get("/delegates/<delegate_id>")
+def delegate_details(delegate_id: str) -> str:
+    delegate = DELEGATES.get(delegate_id)
+    if not delegate:
+        return render_template("delegates_detail.html", delegate=None, **page_context("Delegate")), 404
+    return render_template("delegates_detail.html", delegate=delegate, **page_context(f"Delegate · {delegate.name}"))
+
+
+@app.post("/delegates/<delegate_id>/assign")
+def delegate_assign(delegate_id: str) -> Response:
+    delegate = DELEGATES.get(delegate_id)
+    correlation_id = ensure_correlation_id(request.form.get("correlation_id"))
+    if not delegate:
+        response = Response("Delegate not found", status=404)
+        response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["command_failed"]
+        return with_contract_headers(response, correlation_id, ok=False)
+
+    command = request.form.get("command", "").strip()
+    if not command:
+        response = Response("Missing command", status=400)
+        response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["command_failed"]
+        return with_contract_headers(response, correlation_id, ok=False)
+
+    capability = request.form.get("capability", "").strip() or delegate.capabilities[0]
+    card = DelegationCard(
+        delegate_id=delegate.id,
+        delegate_name=delegate.name,
+        capability=capability,
+        command=command,
+        status="assigned",
+        timestamp=now_iso(),
+        correlation_id=correlation_id,
+    )
+    CHAT_TIMELINE.append({"type": "delegation", "delegation": card})
+    response = Response(render_template("partials/delegation_assignment_result.html", delegation=card))
+    response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["delegation_assigned"]
+    return with_contract_headers(response, correlation_id, ok=True)
+
+
 @app.post("/chat/messages")
 def chat_messages() -> str:
     content = request.form.get("message", "").strip()
@@ -220,8 +321,8 @@ def chat_messages() -> str:
         timestamp=now_iso(),
         correlation_id=correlation_id,
     )
-    CHAT_MESSAGES.append(message)
-    response = Response(render_template("partials/chat_timeline.html", messages=CHAT_MESSAGES))
+    CHAT_TIMELINE.append({"type": "message", "message": message})
+    response = Response(render_template("partials/chat_timeline.html", entries=CHAT_TIMELINE))
     response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["command_received"]
     if stream_mode:
         response.headers["X-UI-Stream-Url"] = f"/stream/chat?correlation_id={correlation_id}"
@@ -230,7 +331,7 @@ def chat_messages() -> str:
 
 @app.get("/chat/timeline")
 def chat_timeline() -> str:
-    response = Response(render_template("partials/chat_timeline.html", messages=CHAT_MESSAGES))
+    response = Response(render_template("partials/chat_timeline.html", entries=CHAT_TIMELINE))
     response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["command_received"]
     return with_contract_headers(response, ensure_correlation_id())
 
@@ -269,7 +370,16 @@ def stream_presence() -> Response:
 @app.get("/stream/chat")
 def stream_chat() -> Response:
     correlation_id = ensure_correlation_id(request.args.get("correlation_id"))
-    source_message = next((msg for msg in reversed(CHAT_MESSAGES) if msg.correlation_id == correlation_id), None)
+    source_message = next(
+        (
+            entry["message"]
+            for entry in reversed(CHAT_TIMELINE)
+            if entry.get("type") == "message"
+            and isinstance(entry.get("message"), ChatMessage)
+            and entry["message"].correlation_id == correlation_id
+        ),
+        None,
+    )
     source_text = source_message.content if source_message else "Message received."
     reply = f"Alphonse stream placeholder: {source_text}"
     chunks = [part for part in reply.split(" ") if part]

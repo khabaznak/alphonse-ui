@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="panel">
+  <div class="panel-title">Delegates</div>
+  <div class="panel-body">
+    <div class="list">
+      {% for delegate in delegates %}
+      <a class="list-item delegate-link" href="/delegates/{{ delegate.id }}">
+        <div class="delegate-name">{{ delegate.name }}</div>
+        <div class="delegate-meta">{{ delegate.status }} · contract {{ delegate.contract_version }}</div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

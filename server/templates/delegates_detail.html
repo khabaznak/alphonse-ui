@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if delegate %}
+<section class="panel">
+  <div class="panel-title">Delegate Detail</div>
+  <div class="panel-body">
+    <div class="kv">
+      <div class="kv-label">Name</div>
+      <div class="kv-value">{{ delegate.name }}</div>
+    </div>
+    <div class="kv">
+      <div class="kv-label">Delegate ID</div>
+      <div class="kv-value">{{ delegate.id }}</div>
+    </div>
+    <div class="kv">
+      <div class="kv-label">Status</div>
+      <div class="kv-value">{{ delegate.status }}</div>
+    </div>
+    <div class="kv">
+      <div class="kv-label">Contract Version</div>
+      <div class="kv-value">{{ delegate.contract_version }}</div>
+    </div>
+    <div class="kv">
+      <div class="kv-label">Pricing Model</div>
+      <div class="kv-value">{{ delegate.pricing_model or "n/a" }}</div>
+    </div>
+    <div class="kv">
+      <div class="kv-label">Last Seen</div>
+      <div class="kv-value">{{ delegate.last_seen }}</div>
+    </div>
+
+    <form class="form" hx-post="/delegates/{{ delegate.id }}/assign" hx-target="#delegate-assign-result" hx-swap="innerHTML">
+      <label class="field">
+        <span class="field-label">Capability</span>
+        <select name="capability" class="select-field">
+          {% for capability in delegate.capabilities %}
+          <option value="{{ capability }}">{{ capability }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field">
+        <span class="field-label">Command</span>
+        <textarea name="command" rows="3" placeholder="Describe what to delegate"></textarea>
+      </label>
+      <input type="hidden" name="correlation_id" value="" />
+      <button class="button" type="submit">Assign Delegate</button>
+    </form>
+
+    <div id="delegate-assign-result" class="panel-subtle">
+      <div class="panel-subtle-title">Assignment Result</div>
+      <div class="panel-subtle-body">No delegation command submitted yet.</div>
+    </div>
+  </div>
+</section>
+{% else %}
+<section class="panel">
+  <div class="panel-title">Delegate Detail</div>
+  <div class="panel-body">
+    <div class="empty-state">Delegate not found.</div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

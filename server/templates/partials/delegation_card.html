@@ -1,0 +1,11 @@
+<div class="chat-message delegation-card">
+  <div class="chat-meta">
+    <span class="chat-role">delegation</span>
+    <span class="chat-time">{{ delegation.timestamp }}</span>
+  </div>
+  <div class="chat-content">
+    <strong>{{ delegation.delegate_name }}</strong> assigned for <code>{{ delegation.capability }}</code>
+  </div>
+  <div class="delegation-command">{{ delegation.command }}</div>
+  <div class="chat-correlation">Correlation {{ delegation.correlation_id }}</div>
+</div>

@@ -1,6 +1,12 @@
-{% if messages %}
-  {% for message in messages %}
-    {% include "partials/chat_message.html" %}
+{% if entries %}
+  {% for entry in entries %}
+    {% if entry["type"] == "message" %}
+      {% set message = entry["message"] %}
+      {% include "partials/chat_message.html" %}
+    {% elif entry["type"] == "delegation" %}
+      {% set delegation = entry["delegation"] %}
+      {% include "partials/delegation_card.html" %}
+    {% endif %}
   {% endfor %}
 {% else %}
   <div class="empty-state">No messages yet.</div>

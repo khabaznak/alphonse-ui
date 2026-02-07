@@ -69,6 +69,35 @@ State Snapshot
 }
 ```
 
+Delegation Command
+```json
+{
+  "type": "command",
+  "name": "delegate.assign",
+  "payload": {
+    "delegate_id": "ops-runner",
+    "capability": "incident_triage",
+    "command": "Triage overnight alert spikes and summarize impact"
+  },
+  "correlation_id": "ui-1707243251333",
+  "timestamp": "2026-02-07T09:14:20-05:00"
+}
+```
+
+Delegation Event
+```json
+{
+  "type": "event",
+  "name": "ui.event.delegation.assigned",
+  "payload": {
+    "delegate_id": "ops-runner",
+    "status": "assigned"
+  },
+  "correlation_id": "ui-1707243251333",
+  "timestamp": "2026-02-07T09:14:21-05:00"
+}
+```
+
 ## Responsibility Rules
 
 - The UI never decides, classifies intent, or resolves ambiguity.
@@ -94,6 +123,10 @@ Every response from the UI API returns contract metadata in headers:
 
 For command-related responses, `X-UI-Event-Type` is included and set to `ui.command.*` or `ui.event.*`.
 
+Correlation trace rule:
+- A single `correlation_id` starts on the command and must be preserved across all resulting events and UI cards.
+- Delegation flow example: `delegate.assign` command -> `ui.command.received` -> `ui.event.delegation.assigned` (all with same `correlation_id`).
+
 ## Versioning
 
 - The UI and Alphonse exchange a `contract_version` string.
@@ -109,3 +142,6 @@ Presence
 Commands
 - `ui.command.received`
 - `ui.command.failed`
+
+Delegation
+- `ui.event.delegation.assigned`

@@ -274,6 +274,26 @@ textarea {
   background: var(--bg-2);
 }
 
+.delegate-link {
+  display: block;
+  color: var(--ink-0);
+  text-decoration: none;
+}
+
+.delegate-link:hover {
+  border-color: var(--accent-0);
+}
+
+.delegate-name {
+  font-size: 0.95rem;
+}
+
+.delegate-meta {
+  margin-top: var(--space-1);
+  color: var(--ink-2);
+  font-size: 0.8rem;
+}
+
 .placeholder,
 .empty-state {
   color: var(--ink-2);
@@ -335,6 +355,44 @@ textarea {
 
 .presence-value {
   font-size: 0.9rem;
+  color: var(--ink-1);
+}
+
+.kv {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.kv-label {
+  font-family: var(--font-system);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-2);
+}
+
+.kv-value {
+  font-size: 0.9rem;
+  color: var(--ink-1);
+}
+
+.select-field {
+  width: 100%;
+  padding: var(--space-2);
+  background: var(--bg-2);
+  border: 1px solid var(--border-0);
+  border-radius: var(--radius-0);
+  color: var(--ink-0);
+  font-family: var(--font-body);
+}
+
+.delegation-card {
+  border-color: var(--accent-0);
+}
+
+.delegation-command {
+  margin-top: var(--space-1);
+  font-size: 0.85rem;
   color: var(--ink-1);
 }
 

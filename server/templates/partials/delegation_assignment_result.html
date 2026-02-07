@@ -1,0 +1,16 @@
+<div class="panel-subtle-title">Assignment Result</div>
+<div class="panel-subtle-body">
+  <div class="kv">
+    <div class="kv-label">Status</div>
+    <div class="kv-value">{{ delegation.status }}</div>
+  </div>
+  <div class="kv">
+    <div class="kv-label">Delegate</div>
+    <div class="kv-value">{{ delegation.delegate_name }}</div>
+  </div>
+  <div class="kv">
+    <div class="kv-label">Correlation</div>
+    <div class="kv-value">{{ delegation.correlation_id }}</div>
+  </div>
+  {% include "partials/delegation_card.html" %}
+</div>
