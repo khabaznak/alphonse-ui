@@ -18,6 +18,7 @@ This repo provides the initial scaffolding and HTMX skeleton:
 - Right contextual panel for external world (hidden by default).
 - HTMX endpoints for chat timeline and presence placeholder.
 - Optional presence island using SSE with HTMX polling fallback.
+- Chat remains HTMX-first with optional isolated streaming island.
 - In-memory chat messages for local development only.
 
 ## How To Run
@@ -47,6 +48,7 @@ server/
       presence.html       Presence fragment
   static/
     css/app.css           Token-based styles (placeholder)
+    js/chat_stream_island.js Optional SSE island scoped to #chat-stream-island
     js/presence_island.js Optional SSE island scoped to #presence-island
 requirements.txt
 AGENTS.md                 Agent–UI contract
@@ -67,3 +69,15 @@ AGENTS.md                 Agent–UI contract
   - If `EventSource` is unavailable, `#presence-island` switches to HTMX polling.
   - Polling uses `GET /ui/presence` every 20 seconds.
   - If SSE disconnects/errors, the same HTMX polling fallback is activated.
+
+## Chat Delivery Modes
+
+- Default mode is HTMX-only:
+  - `POST /chat/messages` appends message server-side and returns the full `chat_timeline` partial.
+  - Composer uses HTMX target swap to replace `#chat-timeline`.
+- Optional stream mode:
+  - Enable in `#chat-stream-island` (isolated JS module).
+  - Form includes `stream=1`, and `POST /chat/messages` returns `X-UI-Stream-Url`.
+  - Island subscribes to `GET /stream/chat?correlation_id=...` and renders stream output locally.
+- Fallback behavior:
+  - If SSE is unavailable or errors, UI remains fully functional in HTMX-only mode.

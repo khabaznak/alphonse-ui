@@ -207,6 +207,7 @@ def integrations() -> str:
 def chat_messages() -> str:
     content = request.form.get("message", "").strip()
     correlation_id = ensure_correlation_id(request.form.get("correlation_id"))
+    stream_mode = (request.args.get("stream") == "1") or (request.form.get("stream") == "1")
     if not content:
         response = Response("", status=400)
         response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["command_failed"]
@@ -220,8 +221,10 @@ def chat_messages() -> str:
         correlation_id=correlation_id,
     )
     CHAT_MESSAGES.append(message)
-    response = Response(render_template("partials/chat_message.html", message=message))
+    response = Response(render_template("partials/chat_timeline.html", messages=CHAT_MESSAGES))
     response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["command_received"]
+    if stream_mode:
+        response.headers["X-UI-Stream-Url"] = f"/stream/chat?correlation_id={correlation_id}"
     return with_contract_headers(response, correlation_id)
 
 
@@ -252,6 +255,40 @@ def stream_presence() -> Response:
             yield "event: presence\n"
             yield f"data: {json.dumps(payload)}\n\n"
             time.sleep(10)
+
+    return Response(
+        generate(),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.get("/stream/chat")
+def stream_chat() -> Response:
+    correlation_id = ensure_correlation_id(request.args.get("correlation_id"))
+    source_message = next((msg for msg in reversed(CHAT_MESSAGES) if msg.correlation_id == correlation_id), None)
+    source_text = source_message.content if source_message else "Message received."
+    reply = f"Alphonse stream placeholder: {source_text}"
+    chunks = [part for part in reply.split(" ") if part]
+
+    def generate() -> Iterable[str]:
+        yield "event: chat_start\n"
+        yield f"data: {json.dumps({'correlation_id': correlation_id, 'timestamp': now_iso()})}\n\n"
+        for part in chunks:
+            payload = {
+                "correlation_id": correlation_id,
+                "chunk": f"{part} ",
+                "timestamp": now_iso(),
+                "event_type": "ui.event.chat.chunk",
+            }
+            yield "event: chat_chunk\n"
+            yield f"data: {json.dumps(payload)}\n\n"
+            time.sleep(0.35)
+        yield "event: chat_complete\n"
+        yield f"data: {json.dumps({'correlation_id': correlation_id, 'timestamp': now_iso(), 'event_type': 'ui.event.chat.complete'})}\n\n"
 
     return Response(
         generate(),

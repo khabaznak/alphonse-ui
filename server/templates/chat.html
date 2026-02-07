@@ -22,10 +22,10 @@
     <div class="chat-timeline" id="chat-timeline" hx-get="/chat/timeline" hx-trigger="load" hx-swap="innerHTML">
       Loading timeline...
     </div>
-    <div class="island-mount" data-island="chat-stream">
-      <div class="island-note">Chat stream mount (optional)</div>
+    <div id="chat-stream-island" class="island-mount">
+      <div class="island-note">Chat stream optional island (disabled)</div>
     </div>
-    <form class="composer" hx-post="/chat/messages" hx-target="#chat-timeline" hx-swap="beforeend">
+    <form class="composer" hx-post="/chat/messages" hx-target="#chat-timeline" hx-swap="innerHTML">
       <label class="field">
         <span class="field-label">Message</span>
         <textarea name="message" rows="3" placeholder="Write a command or signal"></textarea>
@@ -41,4 +41,5 @@
 
 {% block scripts %}
 <script src="/static/js/presence_island.js" defer></script>
+<script src="/static/js/chat_stream_island.js" defer></script>
 {% endblock %}
