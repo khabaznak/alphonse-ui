@@ -4,23 +4,35 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{ title }} · Alphonse UI</title>
-    <link rel="stylesheet" href="/static/css/app.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              panel: "#0f172a",
+              panel2: "#111827",
+            },
+          },
+        },
+      };
+    </script>
     <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
   </head>
-  <body>
-    <div class="app-shell">
-      <aside class="sidebar-left" aria-label="Internal navigation">
-        <div class="brand">
-          <div class="brand-title">Alphonse UI</div>
-          <div class="brand-meta">Interface organ</div>
+  <body class="min-h-screen bg-slate-950 text-slate-100 antialiased">
+    <div class="min-h-screen lg:grid lg:grid-cols-[16rem_minmax(0,1fr)_22rem]">
+      <aside class="border-b border-slate-800 bg-slate-900/80 px-4 py-4 backdrop-blur lg:border-b-0 lg:border-r lg:px-5 lg:py-6" aria-label="Internal navigation">
+        <div class="mb-5">
+          <div class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">Alphonse UI</div>
+          <div class="mt-1 text-xs text-slate-500">Interface organ</div>
         </div>
-        <div class="sidebar-section">
+        <div class="space-y-2">
           {% for section in nav_sections %}
-          <details class="nav-group" open>
-            <summary class="nav-group-title">{{ section["title"] }}</summary>
-            <div class="nav-group-items">
+          <details class="rounded-lg border border-slate-800 bg-slate-900/70" open>
+            <summary class="cursor-pointer list-none px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{{ section["title"] }}</summary>
+            <div class="space-y-1 px-2 pb-2">
               {% for item in section["items"] %}
-              <a class="nav-link {% if item["path"] == path %}is-active{% endif %}" href="{{ item["path"] }}">{{ item["label"] }}</a>
+              <a class="block rounded-md px-2 py-1.5 text-sm transition {% if item["path"] == path %}bg-slate-800 text-slate-100{% else %}text-slate-300 hover:bg-slate-800/70 hover:text-slate-100{% endif %}" href="{{ item["path"] }}">{{ item["label"] }}</a>
               {% endfor %}
             </div>
           </details>
@@ -28,32 +40,32 @@
         </div>
       </aside>
 
-      <main class="main-content">
-        <header class="page-header">
+      <main class="px-4 py-5 lg:px-8 lg:py-8">
+        <header class="mb-6 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div class="page-title">{{ title }}</div>
-            <div class="page-meta">Last rendered {{ now }}</div>
+            <h1 class="text-2xl font-semibold tracking-tight text-slate-100">{{ title }}</h1>
+            <p class="mt-1 text-xs text-slate-500">Last rendered {{ now }}</p>
           </div>
-          {% block header_actions %}{% endblock %}
+          <div class="flex items-center gap-2">{% block header_actions %}{% endblock %}</div>
         </header>
-        <section class="page-body">
+        <section class="space-y-5">
           {% block content %}{% endblock %}
         </section>
       </main>
 
-      <aside class="sidebar-right {% if not show_context %}is-hidden{% endif %}" aria-label="External context">
-        <div class="sidebar-right-header">
-          <div class="panel-title">External Context</div>
-          <div class="panel-subtitle">World-facing scope</div>
+      <aside class="border-l border-slate-800 bg-slate-900/70 px-4 py-6 {% if not show_context %}hidden{% endif %} lg:block" aria-label="External context">
+        <div class="mb-4">
+          <div class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">External Context</div>
+          <div class="mt-1 text-xs text-slate-500">World-facing scope</div>
         </div>
-        <div class="sidebar-right-body">
+        <div class="space-y-2">
           {% block right_panel %}
           {% for section in external_sections %}
-          <div class="context-group">
-            <div class="context-title">{{ section["title"] }}</div>
-            <div class="context-items">
+          <div class="rounded-lg border border-slate-800 bg-slate-900/70 p-3">
+            <div class="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">{{ section["title"] }}</div>
+            <div class="space-y-1 text-sm text-slate-300">
               {% for item in section["items"] %}
-              <div class="context-item">{{ item }}</div>
+              <div class="text-slate-400">{{ item }}</div>
               {% endfor %}
             </div>
           </div>

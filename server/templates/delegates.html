@@ -1,17 +1,15 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="panel">
-  <div class="panel-title">Delegates</div>
-  <div class="panel-body">
-    <div class="list">
-      {% for delegate in delegates %}
-      <a class="list-item delegate-link" href="/delegates/{{ delegate.id }}">
-        <div class="delegate-name">{{ delegate.name }}</div>
-        <div class="delegate-meta">{{ delegate.status }} · contract {{ delegate.contract_version }}</div>
-      </a>
-      {% endfor %}
-    </div>
+<section class="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+  <div class="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Delegates</div>
+  <div class="space-y-2">
+    {% for delegate in delegates %}
+    <a class="block rounded-lg border border-slate-800 bg-slate-950/50 p-3 transition hover:border-slate-600" href="/delegates/{{ delegate.id }}">
+      <div class="text-sm font-medium text-slate-100">{{ delegate.name }}</div>
+      <div class="mt-1 text-xs text-slate-400">{{ delegate.status }} · contract {{ delegate.contract_version }}</div>
+    </a>
+    {% endfor %}
   </div>
 </section>
 {% endblock %}

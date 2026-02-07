@@ -1,8 +1,8 @@
-<div class="chat-message">
-  <div class="chat-meta">
-    <span class="chat-role">{{ message.role }}</span>
-    <span class="chat-time">{{ message.timestamp }}</span>
+<div class="rounded-lg border border-slate-800 bg-slate-900/70 p-3">
+  <div class="flex items-center justify-between text-[11px] uppercase tracking-[0.14em] text-slate-400">
+    <span>{{ message.role }}</span>
+    <span>{{ message.timestamp }}</span>
   </div>
-  <div class="chat-content">{{ message.content }}</div>
-  <div class="chat-correlation">Correlation {{ message.correlation_id }}</div>
+  <div class="mt-2 text-sm text-slate-100">{{ message.content }}</div>
+  <div class="mt-2 font-mono text-xs text-slate-500">Correlation {{ message.correlation_id }}</div>
 </div>

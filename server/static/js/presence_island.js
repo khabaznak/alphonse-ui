@@ -29,18 +29,18 @@
     const timestamp = payload.timestamp || "";
 
     root.innerHTML = `
-      <div class="presence">
-        <div class="presence-row">
-          <div class="presence-label">Status</div>
-          <div class="presence-value">${status}</div>
+      <div class="space-y-2">
+        <div>
+          <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Status</div>
+          <div class="text-sm text-slate-200">${status}</div>
         </div>
-        <div class="presence-row">
-          <div class="presence-label">Note</div>
-          <div class="presence-value">${note}</div>
+        <div>
+          <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Note</div>
+          <div class="text-sm text-slate-300">${note}</div>
         </div>
-        <div class="presence-row">
-          <div class="presence-label">As of</div>
-          <div class="presence-value">${timestamp}</div>
+        <div>
+          <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">As of</div>
+          <div class="text-sm text-slate-400">${timestamp}</div>
         </div>
       </div>
     `;

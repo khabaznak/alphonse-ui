@@ -5,6 +5,7 @@ Alphonse UI is an interface organ: an extremity (explicit commands), a sense (si
 ## Principles
 
 - Server-first UI (HTMX is the default interaction model).
+- Tailwind CSS utility classes for presentation.
 - Minimal JavaScript, no SPA, no global routing/state.
 - Client-side code only as isolated islands for time-based phenomena (chat/presence/voice/video).
 - The UI observes state; it does not interpret or persist.
@@ -52,7 +53,7 @@ server/
       chat_message.html   Message fragment
       presence.html       Presence fragment
   static/
-    css/app.css           Token-based styles (placeholder)
+    css/app.css           Legacy stylesheet (no longer required for Tailwind layout)
     js/chat_stream_island.js Optional SSE island scoped to #chat-stream-island
     js/presence_island.js Optional SSE island scoped to #presence-island
 requirements.txt
@@ -63,6 +64,7 @@ AGENTS.md                 Agent–UI contract
 
 - `AlphonseClient` in `server/clients/alphonse_api.py` calls Alphonse API over HTTP.
 - Adapter logic lives in `server/clients/alphonse_api.py` and validates response shape before routes consume data.
+- Templates use Tailwind via CDN and server-rendered Jinja partials.
 - Chat command dispatch uses `POST /agent/message`.
 - Presence snapshots use `GET /agent/status`.
 - Delegate routes attempt backend APIs first (`/api/v1/delegates*`, then transitional `/delegates*`), with local fallback while backend contract is finalized.

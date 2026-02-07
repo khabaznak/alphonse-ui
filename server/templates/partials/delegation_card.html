@@ -1,11 +1,12 @@
-<div class="chat-message delegation-card">
-  <div class="chat-meta">
-    <span class="chat-role">delegation</span>
-    <span class="chat-time">{{ delegation.timestamp }}</span>
+<div class="rounded-lg border border-sky-700/50 bg-slate-900/70 p-3">
+  <div class="flex items-center justify-between text-[11px] uppercase tracking-[0.14em] text-slate-400">
+    <span>delegation</span>
+    <span>{{ delegation.timestamp }}</span>
   </div>
-  <div class="chat-content">
-    <strong>{{ delegation.delegate_name }}</strong> assigned for <code>{{ delegation.capability }}</code>
+  <div class="mt-2 text-sm text-slate-100">
+    <strong>{{ delegation.delegate_name }}</strong> assigned for
+    <code class="rounded bg-slate-800 px-1.5 py-0.5 text-xs text-slate-200">{{ delegation.capability }}</code>
   </div>
-  <div class="delegation-command">{{ delegation.command }}</div>
-  <div class="chat-correlation">Correlation {{ delegation.correlation_id }}</div>
+  <div class="mt-2 text-sm text-slate-300">{{ delegation.command }}</div>
+  <div class="mt-2 font-mono text-xs text-slate-500">Correlation {{ delegation.correlation_id }}</div>
 </div>

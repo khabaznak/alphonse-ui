@@ -9,12 +9,12 @@
   let stream = null;
 
   root.innerHTML = `
-    <label class="stream-toggle">
-      <input type="checkbox" data-role="toggle" />
+    <label class="flex items-center gap-2 text-sm text-slate-300">
+      <input class="h-4 w-4 rounded border-slate-600 bg-slate-900" type="checkbox" data-role="toggle" />
       <span>Enable optional chat stream</span>
     </label>
-    <div class="stream-status" data-role="status">HTMX-only mode</div>
-    <pre class="stream-output" data-role="output" aria-live="polite"></pre>
+    <div class="mt-2 text-xs text-slate-500" data-role="status">HTMX-only mode</div>
+    <pre class="mt-2 min-h-[2.5rem] whitespace-pre-wrap rounded-md bg-slate-900/70 p-2 font-mono text-xs text-slate-300" data-role="output" aria-live="polite"></pre>
   `;
 
   const toggle = root.querySelector('[data-role="toggle"]');
