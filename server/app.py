@@ -36,10 +36,29 @@ class AlphonseClient:
 
 ALPHONSE = AlphonseClient()
 CHAT_MESSAGES: List[ChatMessage] = []
+UI_EVENT_TYPES = {
+    "presence_update": "ui.event.presence.update",
+    "presence_idle": "ui.event.presence.idle",
+    "command_received": "ui.command.received",
+    "command_failed": "ui.command.failed",
+}
 
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+
+
+def ensure_correlation_id(value: Optional[str] = None) -> str:
+    if value and value.strip():
+        return value.strip()
+    return f"ui-{int(datetime.now().timestamp() * 1000)}"
+
+
+def with_contract_headers(response: Response, correlation_id: str, ok: bool = True) -> Response:
+    response.headers["X-UI-Ok"] = "true" if ok else "false"
+    response.headers["X-UI-Correlation-Id"] = correlation_id
+    response.headers["X-UI-Timestamp"] = now_iso()
+    return response
 
 
 def nav_sections() -> List[Dict[str, object]]:
@@ -185,29 +204,38 @@ def integrations() -> str:
 @app.post("/chat/messages")
 def chat_messages() -> str:
     content = request.form.get("message", "").strip()
+    correlation_id = ensure_correlation_id(request.form.get("correlation_id"))
     if not content:
-        return "", 204
+        response = Response("", status=400)
+        response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["command_failed"]
+        return with_contract_headers(response, correlation_id, ok=False)
 
-    ack = ALPHONSE.send_message(content)
+    ALPHONSE.send_message(content)
     message = ChatMessage(
         role="user",
         content=content,
         timestamp=now_iso(),
-        correlation_id=ack["correlation_id"],
+        correlation_id=correlation_id,
     )
     CHAT_MESSAGES.append(message)
-    return render_template("partials/chat_message.html", message=message)
+    response = Response(render_template("partials/chat_message.html", message=message))
+    response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["command_received"]
+    return with_contract_headers(response, correlation_id)
 
 
 @app.get("/chat/timeline")
 def chat_timeline() -> str:
-    return render_template("partials/chat_timeline.html", messages=CHAT_MESSAGES)
+    response = Response(render_template("partials/chat_timeline.html", messages=CHAT_MESSAGES))
+    response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["command_received"]
+    return with_contract_headers(response, ensure_correlation_id())
 
 
 @app.get("/ui/presence")
 def ui_presence() -> str:
     presence = ALPHONSE.presence_snapshot()
-    return render_template("partials/presence.html", presence=presence, now=now_iso())
+    response = Response(render_template("partials/presence.html", presence=presence, now=now_iso()))
+    response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["presence_update"]
+    return with_contract_headers(response, ensure_correlation_id())
 
 
 if __name__ == "__main__":

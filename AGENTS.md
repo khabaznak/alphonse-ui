@@ -13,6 +13,62 @@
 - **event**: emitted by Alphonse to describe outcomes or changes.
 - **state_snapshot**: authoritative state view from Alphonse.
 
+### Examples (JSON)
+
+Command
+```json
+{
+  "type": "command",
+  "name": "send_message",
+  "payload": {
+    "message": "Send status report to Alex"
+  },
+  "correlation_id": "ui-1707243250123",
+  "timestamp": "2026-02-07T09:14:10-05:00"
+}
+```
+
+Signal
+```json
+{
+  "type": "signal",
+  "name": "ambient_note",
+  "payload": {
+    "text": "Office door opened"
+  },
+  "correlation_id": "ui-1707243250456",
+  "timestamp": "2026-02-07T09:14:12-05:00"
+}
+```
+
+Event
+```json
+{
+  "type": "event",
+  "name": "ui.event.presence.update",
+  "payload": {
+    "status": "idle",
+    "note": "Awaiting agent transport"
+  },
+  "correlation_id": "ui-1707243250789",
+  "timestamp": "2026-02-07T09:14:15-05:00"
+}
+```
+
+State Snapshot
+```json
+{
+  "type": "state_snapshot",
+  "name": "agent.runtime",
+  "payload": {
+    "mode": "observer",
+    "transport": "disconnected"
+  },
+  "correlation_id": "ui-1707243250999",
+  "timestamp": "2026-02-07T09:14:17-05:00"
+}
+```
+
 ## Responsibility Rules
 
 - The UI never decides, classifies intent, or resolves ambiguity.
@@ -28,8 +84,28 @@
 - **Snapshot failure**: UI continues showing the last known snapshot with a stale indicator.
 - **Audit**: UI must retain the `correlation_id` and display it for operator tracing.
 
+## API Contract Headers
+
+Every response from the UI API returns contract metadata in headers:
+
+- `X-UI-Ok`: `"true"` or `"false"`.
+- `X-UI-Correlation-Id`: correlation identifier for tracing.
+- `X-UI-Timestamp`: ISO8601 timestamp.
+
+For command-related responses, `X-UI-Event-Type` is included and set to `ui.command.*` or `ui.event.*`.
+
 ## Versioning
 
 - The UI and Alphonse exchange a `contract_version` string.
 - Backward compatibility is required for one minor version.
 - On incompatibility, the UI enters read-only safe mode (events + snapshots only).
+
+## Minimal Event Types
+
+Presence
+- `ui.event.presence.update`
+- `ui.event.presence.idle`
+
+Commands
+- `ui.command.received`
+- `ui.command.failed`
