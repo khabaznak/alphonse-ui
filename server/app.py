@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, Iterable, List, Optional
+from urllib import error, request as urlrequest
 
 from flask import Flask, Response, redirect, render_template, request, url_for
 
@@ -42,20 +44,72 @@ class DelegationCard:
 
 
 class AlphonseClient:
-    """Stub adapter for future Alphonse connectivity."""
+    """HTTP adapter for Alphonse agent API."""
 
-    def send_message(self, content: str) -> Dict[str, str]:
-        correlation_id = f"local-{int(datetime.now().timestamp() * 1000)}"
-        return {
+    def __init__(self) -> None:
+        self.base_url = os.getenv("ALPHONSE_API_BASE_URL", "http://127.0.0.1:8001").rstrip("/")
+        token = os.getenv("ALPHONSE_API_TOKEN", "").strip()
+        self.api_token = token or None
+
+    def send_message(self, content: str, correlation_id: str) -> Dict[str, object]:
+        payload = {
+            "text": content,
+            "channel": "webui",
+            "timestamp": time.time(),
             "correlation_id": correlation_id,
-            "status": "accepted",
+            "metadata": {"source": "alphonse-ui"},
         }
+        data = self._request_json("POST", "/agent/message", payload=payload, timeout=5.0)
+        if data is None:
+            return {"ok": False, "status": "unavailable", "correlation_id": correlation_id}
+        return {"ok": True, "status": "accepted", "correlation_id": correlation_id, "data": data}
 
     def presence_snapshot(self) -> Dict[str, str]:
+        data = self._request_json("GET", "/agent/status", payload=None, timeout=3.0)
+        if data is None:
+            return {
+                "status": "disconnected",
+                "note": "Alphonse API unavailable",
+            }
+        runtime = data.get("runtime")
+        if isinstance(runtime, dict):
+            state = str(runtime.get("state") or runtime.get("status") or "connected")
+        else:
+            state = "connected"
         return {
-            "status": "disconnected",
-            "note": "Awaiting agent transport",
+            "status": state,
+            "note": "Alphonse API connected",
         }
+
+    def _request_json(
+        self,
+        method: str,
+        path: str,
+        payload: Optional[Dict[str, object]],
+        timeout: float,
+    ) -> Optional[Dict[str, object]]:
+        url = f"{self.base_url}{path}"
+        body = None
+        if payload is not None:
+            body = json.dumps(payload).encode("utf-8")
+        req = urlrequest.Request(url, data=body, method=method)
+        req.add_header("Accept", "application/json")
+        if payload is not None:
+            req.add_header("Content-Type", "application/json")
+        if self.api_token:
+            req.add_header("x-alphonse-api-token", self.api_token)
+        try:
+            with urlrequest.urlopen(req, timeout=timeout) as resp:
+                raw = resp.read().decode("utf-8")
+                parsed = json.loads(raw)
+                if isinstance(parsed, dict):
+                    data = parsed.get("data")
+                    if isinstance(data, dict):
+                        return data
+                    return parsed
+        except (error.URLError, error.HTTPError, TimeoutError, json.JSONDecodeError):
+            return None
+        return None
 
 
 ALPHONSE = AlphonseClient()
@@ -314,7 +368,7 @@ def chat_messages() -> str:
         response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["command_failed"]
         return with_contract_headers(response, correlation_id, ok=False)
 
-    ALPHONSE.send_message(content)
+    dispatch = ALPHONSE.send_message(content, correlation_id)
     message = ChatMessage(
         role="user",
         content=content,
@@ -322,8 +376,22 @@ def chat_messages() -> str:
         correlation_id=correlation_id,
     )
     CHAT_TIMELINE.append({"type": "message", "message": message})
+    event_type = UI_EVENT_TYPES["command_received"]
+    if not dispatch.get("ok"):
+        event_type = UI_EVENT_TYPES["command_failed"]
+        CHAT_TIMELINE.append(
+            {
+                "type": "message",
+                "message": ChatMessage(
+                    role="system",
+                    content="Command accepted by UI but Alphonse API is unavailable.",
+                    timestamp=now_iso(),
+                    correlation_id=correlation_id,
+                ),
+            }
+        )
     response = Response(render_template("partials/chat_timeline.html", entries=CHAT_TIMELINE))
-    response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["command_received"]
+    response.headers["X-UI-Event-Type"] = event_type
     if stream_mode:
         response.headers["X-UI-Stream-Url"] = f"/stream/chat?correlation_id={correlation_id}"
     return with_contract_headers(response, correlation_id)
@@ -340,7 +408,10 @@ def chat_timeline() -> str:
 def ui_presence() -> str:
     presence = ALPHONSE.presence_snapshot()
     response = Response(render_template("partials/presence.html", presence=presence, now=now_iso()))
-    response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["presence_update"]
+    event_type = UI_EVENT_TYPES["presence_update"]
+    if presence.get("status") == "disconnected":
+        event_type = UI_EVENT_TYPES["presence_idle"]
+    response.headers["X-UI-Event-Type"] = event_type
     return with_contract_headers(response, ensure_correlation_id())
 
 

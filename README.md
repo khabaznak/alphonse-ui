@@ -27,6 +27,9 @@ This repo provides the initial scaffolding and HTMX skeleton:
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+export ALPHONSE_API_BASE_URL=http://127.0.0.1:8001
+# optional if backend enforces token:
+# export ALPHONSE_API_TOKEN=your-token
 python -m flask --app server/app.py run --port 5001
 ```
 
@@ -56,9 +59,11 @@ AGENTS.md                 Agent–UI contract
 
 ## Notes
 
-- No real Alphonse connectivity is implemented yet.
-- `AlphonseClient` in `server/app.py` is a stub for future HTTP/WS/SSE transport.
+- `AlphonseClient` in `server/app.py` calls Alphonse API over HTTP.
+- Chat command dispatch uses `POST /agent/message`.
+- Presence snapshots use `GET /agent/status`.
 - Messages are stored in-memory for dev only and will reset on restart.
+- If Alphonse API is unreachable, chat remains usable and UI shows degraded-state status/events.
 
 ## Presence Island
 
