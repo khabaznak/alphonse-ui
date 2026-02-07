@@ -69,10 +69,25 @@ This is not a single API surface.
     - `correlation_id`
     - optional metadata block
   - UI timeline appends user message immediately and shows backend acknowledgment/failure state.
+  - Default delivery remains HTMX-only; optional stream mode uses `GET /stream/chat?correlation_id=...` as a UI-local island until backend streaming API is defined.
 
 - UI `GET /chat/timeline`
   - Remains UI-local view composition; do not query DB directly.
+  - Timeline is now mixed-entry (message + delegation card) and must remain server-rendered.
   - For now uses in-memory timeline store until richer event API is exposed.
+
+- UI `GET /delegates`
+  - Backend target (to define): delegates list endpoint that returns fields:
+    - `id`, `name`, `capabilities`, `contract_version`, `pricing_model`, `status`, `last_seen`
+  - Until available, UI keeps temporary in-memory delegate registry.
+
+- UI `GET /delegates/<id>`
+  - Backend target (to define): delegate detail endpoint with the same contract fields.
+
+- UI `POST /delegates/<id>/assign`
+  - Backend target (to define): delegation assignment command endpoint.
+  - Must carry `correlation_id` from UI command through resulting backend events.
+  - UI emits/reflects `ui.event.delegation.assigned` and renders inline delegation card in chat timeline.
 
 ## Risks and Gaps
 
@@ -88,16 +103,29 @@ This is not a single API surface.
 - Existing endpoints are not under `/api/v1` in the primary agent API.
 - Migration should standardize versioned routes without forcing UI to consume old mixed interfaces app.
 
+4. Delegates API gap
+- Current UI delegates routes are backed by in-memory data in the UI service.
+- Backend needs authoritative delegates APIs and delegation command handling.
+
+5. Correlation chain for delegation
+- Delegation must preserve one `correlation_id` across:
+  - command submission (`POST /delegates/<id>/assign`)
+  - backend command acknowledgment
+  - emitted delegation event(s)
+  - rendered delegation card in timeline
+
 ## Practical Rollout Plan
 
 1. Replace stubbed `AlphonseClient` in `alphonse-ui` with real HTTP adapter calls.
 2. Add env-driven base URL/token support and hard timeouts.
-3. Keep UI contract headers/events unchanged.
-4. Add fallback rendering for backend unavailability.
-5. Validate with local runtime:
+3. Keep UI contract headers/events unchanged, including delegation event typing.
+4. Define delegates backend API contract and map UI routes to it.
+5. Add fallback rendering for backend unavailability.
+6. Validate with local runtime:
 - Start backend: `python -m alphonse.agent.main` in `atrium-server`.
 - Start UI: Flask app in `alphonse-ui`.
 - Verify `/chat` send + `/ui/presence` status.
+- Verify `/delegates` list, details, and assignment flow with correlation trace continuity.
 
 ## Boundary Reminder
 
