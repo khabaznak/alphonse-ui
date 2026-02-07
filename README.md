@@ -19,7 +19,7 @@ This repo provides the initial scaffolding and HTMX skeleton:
 - Right contextual panel for external world (hidden by default).
 - HTMX endpoints for chat timeline and presence placeholder.
 - Optional presence island using SSE with HTMX polling fallback.
-- Chat remains HTMX-first with optional isolated streaming island.
+- Chat is synchronous request/response (no streaming dependency).
 - In-memory chat messages for local development only.
 
 ## How To Run
@@ -28,9 +28,11 @@ This repo provides the initial scaffolding and HTMX skeleton:
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-export ALPHONSE_API_BASE_URL=http://127.0.0.1:8001
+export ALPHONSE_API_BASE_URL=http://localhost:8001
 # optional if backend enforces token:
 # export ALPHONSE_API_TOKEN=your-token
+# optional UI display name for metadata.user_name:
+# export ALPHONSE_UI_USER_NAME="Alphonse UI"
 python -m flask --app server/app.py run --port 5001
 ```
 
@@ -54,7 +56,6 @@ server/
       presence.html       Presence fragment
   static/
     css/app.css           Legacy stylesheet (no longer required for Tailwind layout)
-    js/chat_stream_island.js Optional SSE island scoped to #chat-stream-island
     js/presence_island.js Optional SSE island scoped to #presence-island
 requirements.txt
 AGENTS.md                 Agent–UI contract
@@ -83,12 +84,7 @@ AGENTS.md                 Agent–UI contract
 
 ## Chat Delivery Modes
 
-- Default mode is HTMX-only:
-  - `POST /chat/messages` appends message server-side and returns the full `chat_timeline` partial.
+- Chat mode is HTMX-only in this MVP:
+  - `POST /chat/messages` appends user + assistant messages server-side and returns the full `chat_timeline` partial.
   - Composer uses HTMX target swap to replace `#chat-timeline`.
-- Optional stream mode:
-  - Enable in `#chat-stream-island` (isolated JS module).
-  - Form includes `stream=1`, and `POST /chat/messages` returns `X-UI-Stream-Url`.
-  - Island subscribes to `GET /stream/chat?correlation_id=...` and renders stream output locally.
-- Fallback behavior:
-  - If SSE is unavailable or errors, UI remains fully functional in HTMX-only mode.
+  - API/network/response errors show assistant fallback text: `Alphonse is unavailable.`

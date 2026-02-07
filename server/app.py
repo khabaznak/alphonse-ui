@@ -347,7 +347,6 @@ def delegate_assign(delegate_id: str) -> Response:
 def chat_messages() -> str:
     content = request.form.get("message", "").strip()
     correlation_id = ensure_correlation_id(request.form.get("correlation_id"))
-    stream_mode = (request.args.get("stream") == "1") or (request.form.get("stream") == "1")
     if not content:
         response = Response("", status=400)
         response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["command_failed"]
@@ -368,8 +367,26 @@ def chat_messages() -> str:
             {
                 "type": "message",
                 "message": ChatMessage(
-                    role="system",
-                    content="Command accepted by UI but Alphonse API is unavailable.",
+                    role="assistant",
+                    content="Alphonse is unavailable.",
+                    timestamp=now_iso(),
+                    correlation_id=correlation_id,
+                ),
+            }
+        )
+    else:
+        response_data = dispatch.get("data")
+        assistant_text = None
+        if isinstance(response_data, dict):
+            maybe_message = response_data.get("message")
+            if isinstance(maybe_message, str) and maybe_message.strip():
+                assistant_text = maybe_message
+        CHAT_TIMELINE.append(
+            {
+                "type": "message",
+                "message": ChatMessage(
+                    role="assistant",
+                    content=assistant_text or "Alphonse is unavailable.",
                     timestamp=now_iso(),
                     correlation_id=correlation_id,
                 ),
@@ -377,8 +394,6 @@ def chat_messages() -> str:
         )
     response = Response(render_template("partials/chat_timeline.html", entries=CHAT_TIMELINE))
     response.headers["X-UI-Event-Type"] = event_type
-    if stream_mode:
-        response.headers["X-UI-Stream-Url"] = f"/stream/chat?correlation_id={correlation_id}"
     return with_contract_headers(response, correlation_id)
 
 

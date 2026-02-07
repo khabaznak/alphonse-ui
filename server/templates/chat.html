@@ -22,9 +22,6 @@
     <div class="mb-4 min-h-[16rem] space-y-2 rounded-lg border border-slate-800 bg-slate-950/60 p-3" id="chat-timeline" hx-get="/chat/timeline" hx-trigger="load" hx-swap="innerHTML">
       <div class="text-sm text-slate-500">Loading timeline...</div>
     </div>
-    <div id="chat-stream-island" class="mb-4 rounded-lg border border-dashed border-slate-700 bg-slate-950/50 p-3 text-sm text-slate-400">
-      <div class="font-mono text-xs text-slate-500">Chat stream optional island (disabled)</div>
-    </div>
     <form class="composer space-y-3" hx-post="/chat/messages" hx-target="#chat-timeline" hx-swap="innerHTML">
       <label class="block space-y-1">
         <span class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Message</span>
@@ -41,5 +38,4 @@
 
 {% block scripts %}
 <script src="/static/js/presence_island.js" defer></script>
-<script src="/static/js/chat_stream_island.js" defer></script>
 {% endblock %}

@@ -11,19 +11,31 @@ class AlphonseClient:
     """HTTP adapter for Alphonse agent API with shape validation."""
 
     def __init__(self) -> None:
-        self.base_url = os.getenv("ALPHONSE_API_BASE_URL", "http://127.0.0.1:8001").rstrip("/")
+        self.base_url = os.getenv("ALPHONSE_API_BASE_URL", "http://localhost:8001").rstrip("/")
         token = os.getenv("ALPHONSE_API_TOKEN", "").strip()
         self.api_token = token or None
 
-    def send_message(self, content: str, correlation_id: str) -> Dict[str, object]:
+    def send_message(
+        self,
+        content: str,
+        correlation_id: str,
+        args: Optional[Dict[str, object]] = None,
+    ) -> Dict[str, object]:
         payload = {
             "text": content,
+            "args": args or {},
             "channel": "webui",
-            "timestamp": time.time(),
+            "timestamp": int(time.time()),
             "correlation_id": correlation_id,
-            "metadata": {"source": "alphonse-ui"},
+            "metadata": {"user_name": self._default_user_name()},
         }
-        data = self._request_json("POST", "/agent/message", payload=payload, timeout=5.0)
+        data = self._request_json(
+            "POST",
+            "/agent/message",
+            payload=payload,
+            timeout=5.0,
+            unwrap_data=False,
+        )
         if not self._valid_message_response(data):
             return {"ok": False, "status": "unavailable", "correlation_id": correlation_id}
         return {"ok": True, "status": "accepted", "correlation_id": correlation_id, "data": data}
@@ -98,6 +110,7 @@ class AlphonseClient:
         path: str,
         payload: Optional[Dict[str, object]],
         timeout: float,
+        unwrap_data: bool = True,
     ) -> Optional[Any]:
         url = f"{self.base_url}{path}"
         body = None
@@ -114,15 +127,23 @@ class AlphonseClient:
                 raw = resp.read().decode("utf-8")
                 parsed = json.loads(raw)
                 if isinstance(parsed, dict):
-                    data = parsed.get("data")
-                    if data is not None:
-                        return data
+                    if unwrap_data:
+                        data = parsed.get("data")
+                        if data is not None:
+                            return data
                     return parsed
                 if isinstance(parsed, list):
                     return parsed
         except (error.URLError, error.HTTPError, TimeoutError, json.JSONDecodeError):
             return None
         return None
+
+    def _default_user_name(self) -> str:
+        return (
+            os.getenv("ALPHONSE_UI_USER_NAME", "").strip()
+            or os.getenv("USER", "").strip()
+            or "Alphonse UI"
+        )
 
     def _extract_delegate_list(self, payload: Optional[Any]) -> Optional[List[Dict[str, object]]]:
         if isinstance(payload, list):
@@ -150,7 +171,7 @@ class AlphonseClient:
         if not isinstance(payload, dict):
             return False
         message = payload.get("message")
-        return isinstance(message, (str, type(None)))
+        return isinstance(message, str)
 
     def _valid_status_response(self, payload: Optional[Any]) -> bool:
         if not isinstance(payload, dict):
