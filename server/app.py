@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -44,6 +45,7 @@ class DelegationCard:
 
 ALPHONSE = AlphonseClient()
 CHAT_TIMELINE: List[Dict[str, object]] = []
+CHAT_TIMELINE_LOCK = threading.Lock()
 LOCAL_DELEGATES: Dict[str, Delegate] = {
     "ops-runner": Delegate(
         id="ops-runner",
@@ -90,6 +92,40 @@ def ensure_correlation_id(value: Optional[str] = None) -> str:
     if value and value.strip():
         return value.strip()
     return f"ui-{int(datetime.now().timestamp() * 1000)}"
+
+
+def _resolve_async_assistant_reply(content: str, correlation_id: str) -> None:
+    dispatch = ALPHONSE.send_message(content, correlation_id)
+    reply_text = "Alphonse is unavailable."
+    if dispatch.get("ok"):
+        response_data = dispatch.get("data")
+        if isinstance(response_data, dict):
+            maybe_message = response_data.get("message")
+            if isinstance(maybe_message, str) and maybe_message.strip():
+                reply_text = maybe_message
+    with CHAT_TIMELINE_LOCK:
+        for entry in reversed(CHAT_TIMELINE):
+            if entry.get("type") != "message":
+                continue
+            candidate = entry.get("message")
+            if not isinstance(candidate, ChatMessage):
+                continue
+            if candidate.correlation_id != correlation_id or candidate.role != "assistant":
+                continue
+            candidate.content = reply_text
+            candidate.timestamp = now_iso()
+            return
+        CHAT_TIMELINE.append(
+            {
+                "type": "message",
+                "message": ChatMessage(
+                    role="assistant",
+                    content=reply_text,
+                    timestamp=now_iso(),
+                    correlation_id=correlation_id,
+                ),
+            }
+        )
 
 
 def with_contract_headers(response: Response, correlation_id: str, ok: bool = True) -> Response:
@@ -335,7 +371,8 @@ def delegate_assign(delegate_id: str) -> Response:
         timestamp=now_iso(),
         correlation_id=correlation_id,
     )
-    CHAT_TIMELINE.append({"type": "delegation", "delegation": card})
+    with CHAT_TIMELINE_LOCK:
+        CHAT_TIMELINE.append({"type": "delegation", "delegation": card})
     response = Response(render_template("partials/delegation_assignment_result.html", delegation=card))
     response.headers["X-UI-Event-Type"] = (
         UI_EVENT_TYPES["delegation_assigned"] if assigned else UI_EVENT_TYPES["command_failed"]
@@ -352,54 +389,48 @@ def chat_messages() -> str:
         response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["command_failed"]
         return with_contract_headers(response, correlation_id, ok=False)
 
-    dispatch = ALPHONSE.send_message(content, correlation_id)
-    message = ChatMessage(
-        role="user",
-        content=content,
-        timestamp=now_iso(),
-        correlation_id=correlation_id,
+    with CHAT_TIMELINE_LOCK:
+        CHAT_TIMELINE.append(
+            {
+                "type": "message",
+                "message": ChatMessage(
+                    role="user",
+                    content=content,
+                    timestamp=now_iso(),
+                    correlation_id=correlation_id,
+                ),
+            }
+        )
+        CHAT_TIMELINE.append(
+            {
+                "type": "message",
+                "message": ChatMessage(
+                    role="assistant",
+                    content="Thinking...",
+                    timestamp=now_iso(),
+                    correlation_id=correlation_id,
+                ),
+            }
+        )
+        entries = list(CHAT_TIMELINE)
+
+    worker = threading.Thread(
+        target=_resolve_async_assistant_reply,
+        args=(content, correlation_id),
+        daemon=True,
     )
-    CHAT_TIMELINE.append({"type": "message", "message": message})
-    event_type = UI_EVENT_TYPES["command_received"]
-    if not dispatch.get("ok"):
-        event_type = UI_EVENT_TYPES["command_failed"]
-        CHAT_TIMELINE.append(
-            {
-                "type": "message",
-                "message": ChatMessage(
-                    role="assistant",
-                    content="Alphonse is unavailable.",
-                    timestamp=now_iso(),
-                    correlation_id=correlation_id,
-                ),
-            }
-        )
-    else:
-        response_data = dispatch.get("data")
-        assistant_text = None
-        if isinstance(response_data, dict):
-            maybe_message = response_data.get("message")
-            if isinstance(maybe_message, str) and maybe_message.strip():
-                assistant_text = maybe_message
-        CHAT_TIMELINE.append(
-            {
-                "type": "message",
-                "message": ChatMessage(
-                    role="assistant",
-                    content=assistant_text or "Alphonse is unavailable.",
-                    timestamp=now_iso(),
-                    correlation_id=correlation_id,
-                ),
-            }
-        )
-    response = Response(render_template("partials/chat_timeline.html", entries=CHAT_TIMELINE))
-    response.headers["X-UI-Event-Type"] = event_type
+    worker.start()
+
+    response = Response(render_template("partials/chat_timeline.html", entries=entries))
+    response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["command_received"]
     return with_contract_headers(response, correlation_id)
 
 
 @app.get("/chat/timeline")
 def chat_timeline() -> str:
-    response = Response(render_template("partials/chat_timeline.html", entries=CHAT_TIMELINE))
+    with CHAT_TIMELINE_LOCK:
+        entries = list(CHAT_TIMELINE)
+    response = Response(render_template("partials/chat_timeline.html", entries=entries))
     response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["command_received"]
     return with_contract_headers(response, ensure_correlation_id())
 
@@ -441,16 +472,17 @@ def stream_presence() -> Response:
 @app.get("/stream/chat")
 def stream_chat() -> Response:
     correlation_id = ensure_correlation_id(request.args.get("correlation_id"))
-    source_message = next(
-        (
-            entry["message"]
-            for entry in reversed(CHAT_TIMELINE)
-            if entry.get("type") == "message"
-            and isinstance(entry.get("message"), ChatMessage)
-            and entry["message"].correlation_id == correlation_id
-        ),
-        None,
-    )
+    with CHAT_TIMELINE_LOCK:
+        source_message = next(
+            (
+                entry["message"]
+                for entry in reversed(CHAT_TIMELINE)
+                if entry.get("type") == "message"
+                and isinstance(entry.get("message"), ChatMessage)
+                and entry["message"].correlation_id == correlation_id
+            ),
+            None,
+        )
     source_text = source_message.content if source_message else "Message received."
     reply = f"Alphonse stream placeholder: {source_text}"
     chunks = [part for part in reply.split(" ") if part]

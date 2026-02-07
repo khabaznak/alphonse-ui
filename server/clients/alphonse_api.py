@@ -14,6 +14,7 @@ class AlphonseClient:
         self.base_url = os.getenv("ALPHONSE_API_BASE_URL", "http://localhost:8001").rstrip("/")
         token = os.getenv("ALPHONSE_API_TOKEN", "").strip()
         self.api_token = token or None
+        self.message_timeout = _read_timeout_seconds("ALPHONSE_API_MESSAGE_TIMEOUT_SECONDS")
 
     def send_message(
         self,
@@ -33,7 +34,7 @@ class AlphonseClient:
             "POST",
             "/agent/message",
             payload=payload,
-            timeout=5.0,
+            timeout=self.message_timeout,
             unwrap_data=False,
         )
         if not self._valid_message_response(data):
@@ -109,7 +110,7 @@ class AlphonseClient:
         method: str,
         path: str,
         payload: Optional[Dict[str, object]],
-        timeout: float,
+        timeout: Optional[float],
         unwrap_data: bool = True,
     ) -> Optional[Any]:
         url = f"{self.base_url}{path}"
@@ -211,3 +212,19 @@ class AlphonseClient:
         if not isinstance(contract_version, str) or not contract_version.strip():
             return False
         return True
+
+
+def _read_timeout_seconds(name: str) -> Optional[float]:
+    value = os.getenv(name)
+    if value is None:
+        return None
+    normalized = value.strip().lower()
+    if not normalized or normalized in {"none", "infinite", "inf", "0"}:
+        return None
+    try:
+        seconds = float(normalized)
+        if seconds <= 0:
+            return None
+        return seconds
+    except ValueError:
+        return None

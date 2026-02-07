@@ -31,6 +31,8 @@ pip install -r requirements.txt
 export ALPHONSE_API_BASE_URL=http://localhost:8001
 # optional if backend enforces token:
 # export ALPHONSE_API_TOKEN=your-token
+# optional message timeout in seconds; unset/0/none means wait indefinitely:
+# export ALPHONSE_API_MESSAGE_TIMEOUT_SECONDS=90
 # optional UI display name for metadata.user_name:
 # export ALPHONSE_UI_USER_NAME="Alphonse UI"
 python -m flask --app server/app.py run --port 5001
@@ -85,6 +87,8 @@ AGENTS.md                 Agent–UI contract
 ## Chat Delivery Modes
 
 - Chat mode is HTMX-only in this MVP:
-  - `POST /chat/messages` appends user + assistant messages server-side and returns the full `chat_timeline` partial.
+  - `POST /chat/messages` appends the user message and a temporary assistant placeholder, then returns immediately.
+  - A background worker sends `POST /agent/message` and updates the pending assistant message when a response arrives.
   - Composer uses HTMX target swap to replace `#chat-timeline`.
-  - API/network/response errors show assistant fallback text: `Alphonse is unavailable.`
+  - Timeline refreshes via HTMX polling (`every 2s`) to pick up async updates.
+  - API/network/response errors resolve to assistant fallback text: `Alphonse is unavailable.`
