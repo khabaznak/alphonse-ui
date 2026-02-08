@@ -214,14 +214,29 @@ def external_sections() -> List[Dict[str, object]]:
     delegate_items = [
         f"{delegate.name} ({delegate.status})" for delegate in delegates.values()
     ]
+    users = ALPHONSE.list_users(active_only=False, limit=200) or []
+    user_items = []
+    for user in users:
+        if not isinstance(user, dict):
+            continue
+        label = (
+            str(
+                user.get("display_name")
+                or user.get("name")
+                or user.get("email")
+                or user.get("principal_id")
+                or user.get("user_id")
+                or "unknown-user"
+            )
+        ).strip()
+        role = str(user.get("primary_role") or user.get("role") or "").strip()
+        if role:
+            label = f"{label} · {role}"
+        user_items.append(label or "unknown-user")
     return [
         {
-            "title": "Family",
-            "items": ["No context linked"],
-        },
-        {
-            "title": "Friends",
-            "items": ["No context linked"],
+            "title": "Users",
+            "items": user_items or ["No users linked"],
         },
         {
             "title": "Home",
@@ -383,7 +398,10 @@ def integrations() -> str:
 @app.get("/tool-configs")
 def tool_configs() -> str:
     limit = _query_int(request.args.get("limit"), default=100, min_value=1, max_value=1000)
-    configs = ALPHONSE.list_tool_configs(limit=limit) or []
+    tool_key = (request.args.get("tool_key") or "").strip()
+    active_only_raw = (request.args.get("active_only") or "").strip()
+    active_only = _parse_bool(active_only_raw, default=False) if active_only_raw else None
+    configs = ALPHONSE.list_tool_configs(tool_key=tool_key or None, active_only=active_only, limit=limit) or []
     selected_config_id = (request.args.get("config_id") or "").strip()
     selected_config = None
     if selected_config_id:
@@ -394,6 +412,8 @@ def tool_configs() -> str:
         selected_config_id=selected_config_id,
         selected_config=selected_config,
         selected_limit=limit,
+        selected_tool_key=tool_key,
+        selected_active_only=active_only_raw,
         notice=(request.args.get("notice") or "").strip(),
         error=(request.args.get("error") or "").strip(),
         **page_context("Tool Configs"),
@@ -437,7 +457,8 @@ def tool_configs_delete(config_id: str) -> Response:
 @app.get("/onboarding/profiles")
 def onboarding_profiles() -> str:
     limit = _query_int(request.args.get("limit"), default=100, min_value=1, max_value=1000)
-    profiles = ALPHONSE.list_onboarding_profiles(limit=limit) or []
+    state = (request.args.get("state") or "").strip()
+    profiles = ALPHONSE.list_onboarding_profiles(state=state or None, limit=limit) or []
     selected_principal_id = (request.args.get("principal_id") or "").strip()
     selected_profile = None
     if selected_principal_id:
@@ -448,6 +469,7 @@ def onboarding_profiles() -> str:
         selected_principal_id=selected_principal_id,
         selected_profile=selected_profile,
         selected_limit=limit,
+        selected_state=state,
         notice=(request.args.get("notice") or "").strip(),
         error=(request.args.get("error") or "").strip(),
         **page_context("Onboarding Profiles"),
@@ -498,7 +520,16 @@ def onboarding_profiles_delete(principal_id: str) -> Response:
 @app.get("/locations")
 def locations() -> str:
     limit = _query_int(request.args.get("limit"), default=100, min_value=1, max_value=1000)
-    items = ALPHONSE.list_locations(limit=limit) or []
+    principal_id = (request.args.get("principal_id") or "").strip()
+    label = (request.args.get("label") or "").strip()
+    active_only_raw = (request.args.get("active_only") or "").strip()
+    active_only = _parse_bool(active_only_raw, default=False) if active_only_raw else None
+    items = ALPHONSE.list_locations(
+        principal_id=principal_id or None,
+        label=label or None,
+        active_only=active_only,
+        limit=limit,
+    ) or []
     selected_location_id = (request.args.get("location_id") or "").strip()
     selected_location = None
     if selected_location_id:
@@ -509,6 +540,9 @@ def locations() -> str:
         selected_location_id=selected_location_id,
         selected_location=selected_location,
         selected_limit=limit,
+        selected_principal_id=principal_id,
+        selected_label=label,
+        selected_active_only=active_only_raw,
         notice=(request.args.get("notice") or "").strip(),
         error=(request.args.get("error") or "").strip(),
         **page_context("Locations"),
@@ -558,10 +592,20 @@ def locations_delete(location_id: str) -> Response:
 
 @app.get("/device-locations")
 def device_locations() -> str:
-    items = ALPHONSE.list_device_locations() or []
+    limit = _query_int(request.args.get("limit"), default=100, min_value=1, max_value=1000)
+    principal_id = (request.args.get("principal_id") or "").strip()
+    device_id = (request.args.get("device_id") or "").strip()
+    items = ALPHONSE.list_device_locations(
+        principal_id=principal_id or None,
+        device_id=device_id or None,
+        limit=limit,
+    ) or []
     return render_template(
         "device_locations.html",
         device_locations=items,
+        selected_principal_id=principal_id,
+        selected_device_id=device_id,
+        selected_limit=limit,
         notice=(request.args.get("notice") or "").strip(),
         error=(request.args.get("error") or "").strip(),
         **page_context("Device Locations"),

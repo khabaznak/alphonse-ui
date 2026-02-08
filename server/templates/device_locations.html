@@ -11,11 +11,33 @@
   <div class="mb-3 rounded-lg border border-rose-700/40 bg-rose-950/40 px-3 py-2 text-sm text-rose-200">{{ error }}</div>
   {% endif %}
 
-  <form method="post" action="/device-locations" class="mb-4 space-y-2 rounded-lg border border-slate-800 bg-slate-950/50 p-3">
-    <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Create Mapping</div>
-    <div class="grid gap-2 sm:grid-cols-2">
-      <label class="block space-y-1">
-        <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">principal_id *</span>
+  <div class="mb-4 grid gap-3 xl:grid-cols-2">
+    <form method="get" action="/device-locations" class="space-y-2 rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+      <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Fetch Device Locations</div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">principal_id</span>
+          <input name="principal_id" type="text" value="{{ selected_principal_id }}" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">device_id</span>
+          <input name="device_id" type="text" value="{{ selected_device_id }}" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+      </div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">limit</span>
+          <input name="limit" type="number" min="1" max="1000" value="{{ selected_limit }}" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+      </div>
+      <button class="inline-flex items-center rounded-md border border-slate-600 bg-slate-800 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-slate-100 hover:bg-slate-700" type="submit">Refresh</button>
+    </form>
+
+    <form method="post" action="/device-locations" class="space-y-2 rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+      <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Create Mapping</div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">principal_id *</span>
         <input name="principal_id" type="text" placeholder="person-alex" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
       </label>
       <label class="block space-y-1">
@@ -47,12 +69,13 @@
       <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">observed_at (ISO8601)</span>
       <input name="observed_at" type="text" placeholder="2026-02-08T18:04:12Z" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
     </label>
-    <label class="block space-y-1">
-      <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">metadata_json</span>
-      <textarea name="metadata_json" rows="4" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 font-mono text-xs text-slate-100" placeholder='{"battery":85,"provider":"gps"}'></textarea>
-    </label>
-    <button class="inline-flex items-center rounded-md border border-slate-600 bg-slate-800 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-slate-100 hover:bg-slate-700" type="submit">Create</button>
-  </form>
+      <label class="block space-y-1">
+        <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">metadata_json</span>
+        <textarea name="metadata_json" rows="4" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 font-mono text-xs text-slate-100" placeholder='{"battery":85,"provider":"gps"}'></textarea>
+      </label>
+      <button class="inline-flex items-center rounded-md border border-slate-600 bg-slate-800 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-slate-100 hover:bg-slate-700" type="submit">Create</button>
+    </form>
+  </div>
 
   {% if device_locations %}
   <div class="space-y-2">

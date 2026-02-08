@@ -20,6 +20,12 @@
           <input name="principal_id" type="text" value="{{ selected_principal_id }}" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
         </label>
         <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">state</span>
+          <input name="state" type="text" value="{{ selected_state }}" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+      </div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
           <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">limit</span>
           <input name="limit" type="number" min="1" max="1000" value="{{ selected_limit }}" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
         </label>

@@ -20,6 +20,26 @@
           <input name="location_id" type="text" value="{{ selected_location_id }}" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
         </label>
         <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">principal_id</span>
+          <input name="principal_id" type="text" value="{{ selected_principal_id }}" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+      </div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">label</span>
+          <input name="label" type="text" value="{{ selected_label }}" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">active_only</span>
+          <select name="active_only" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100">
+            <option value="" {% if not selected_active_only %}selected{% endif %}>any</option>
+            <option value="true" {% if selected_active_only == "true" %}selected{% endif %}>true</option>
+            <option value="false" {% if selected_active_only == "false" %}selected{% endif %}>false</option>
+          </select>
+        </label>
+      </div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
           <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">limit</span>
           <input name="limit" type="number" min="1" max="1000" value="{{ selected_limit }}" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
         </label>

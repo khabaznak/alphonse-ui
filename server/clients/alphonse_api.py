@@ -5,7 +5,7 @@ import os
 import time
 from typing import Any, Dict, List, Optional
 from urllib import error, request as urlrequest
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 
 class AlphonseClient:
@@ -66,6 +66,19 @@ class AlphonseClient:
             return delegates
         payload = self._request_json("GET", "/delegates", payload=None, timeout=3.0)
         return self._extract_delegate_list(payload)
+
+    def list_users(self, active_only: Optional[bool] = None, limit: int = 200) -> Optional[List[Dict[str, object]]]:
+        params = {"limit": max(1, min(limit, 1000))}
+        if active_only is not None:
+            params["active_only"] = "true" if active_only else "false"
+        response = self._request_json(
+            "GET",
+            f"/agent/users?{urlencode(params)}",
+            payload=None,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        return self._extract_items_list(response)
 
     def get_delegate(self, delegate_id: str) -> Optional[Dict[str, object]]:
         payload = self._request_json("GET", f"/api/v1/delegates/{delegate_id}", payload=None, timeout=3.0)
@@ -300,10 +313,17 @@ class AlphonseClient:
             return {"ok": True, "status": "deleted", "data": response}
         return {"ok": True, "status": "deleted"}
 
-    def list_onboarding_profiles(self, limit: int = 100) -> Optional[List[Dict[str, object]]]:
+    def list_onboarding_profiles(
+        self,
+        state: Optional[str] = None,
+        limit: int = 100,
+    ) -> Optional[List[Dict[str, object]]]:
+        params = {"limit": max(1, min(limit, 1000))}
+        if state and state.strip():
+            params["state"] = state.strip()
         response = self._request_json(
             "GET",
-            f"/agent/onboarding/profiles?limit={limit}",
+            f"/agent/onboarding/profiles?{urlencode(params)}",
             payload=None,
             timeout=5.0,
             unwrap_data=False,
@@ -347,10 +367,23 @@ class AlphonseClient:
             return {"ok": False, "status": "missing_or_unavailable"}
         return {"ok": True, "status": "deleted"}
 
-    def list_locations(self, limit: int = 100) -> Optional[List[Dict[str, object]]]:
+    def list_locations(
+        self,
+        principal_id: Optional[str] = None,
+        label: Optional[str] = None,
+        active_only: Optional[bool] = None,
+        limit: int = 100,
+    ) -> Optional[List[Dict[str, object]]]:
+        params = {"limit": max(1, min(limit, 1000))}
+        if principal_id and principal_id.strip():
+            params["principal_id"] = principal_id.strip()
+        if label and label.strip():
+            params["label"] = label.strip()
+        if active_only is not None:
+            params["active_only"] = "true" if active_only else "false"
         response = self._request_json(
             "GET",
-            f"/agent/locations?limit={limit}",
+            f"/agent/locations?{urlencode(params)}",
             payload=None,
             timeout=5.0,
             unwrap_data=False,
@@ -394,10 +427,20 @@ class AlphonseClient:
             return {"ok": False, "status": "missing_or_unavailable"}
         return {"ok": True, "status": "deleted"}
 
-    def list_device_locations(self) -> Optional[List[Dict[str, object]]]:
+    def list_device_locations(
+        self,
+        principal_id: Optional[str] = None,
+        device_id: Optional[str] = None,
+        limit: int = 100,
+    ) -> Optional[List[Dict[str, object]]]:
+        params = {"limit": max(1, min(limit, 1000))}
+        if principal_id and principal_id.strip():
+            params["principal_id"] = principal_id.strip()
+        if device_id and device_id.strip():
+            params["device_id"] = device_id.strip()
         response = self._request_json(
             "GET",
-            "/agent/device-locations",
+            f"/agent/device-locations?{urlencode(params)}",
             payload=None,
             timeout=5.0,
             unwrap_data=False,
@@ -417,10 +460,20 @@ class AlphonseClient:
             return {"ok": False, "status": "unavailable_or_invalid"}
         return {"ok": True, "status": "created", "item": item}
 
-    def list_tool_configs(self, limit: int = 100) -> Optional[List[Dict[str, object]]]:
+    def list_tool_configs(
+        self,
+        tool_key: Optional[str] = None,
+        active_only: Optional[bool] = None,
+        limit: int = 100,
+    ) -> Optional[List[Dict[str, object]]]:
+        params = {"limit": max(1, min(limit, 1000))}
+        if tool_key and tool_key.strip():
+            params["tool_key"] = tool_key.strip()
+        if active_only is not None:
+            params["active_only"] = "true" if active_only else "false"
         response = self._request_json(
             "GET",
-            f"/agent/tool-configs?limit={limit}",
+            f"/agent/tool-configs?{urlencode(params)}",
             payload=None,
             timeout=5.0,
             unwrap_data=False,
