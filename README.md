@@ -18,6 +18,7 @@ This repo provides the initial scaffolding and HTMX skeleton:
 - Abilities CRUD screen (list/create/patch/delete with enabled-only filtering).
 - Gap Proposals review screen (coalesce, approve/reject, dispatch).
 - Gap Tasks tracking screen (open/done workflow for skill creation tasks).
+- Tool config screen for API keys and integration secrets.
 - Left internal navigation with collapsible sections.
 - Right contextual panel for external world (hidden by default).
 - HTMX endpoints for chat timeline and presence placeholder.
@@ -56,6 +57,7 @@ server/
     admin.html            Placeholder
     integrations.html     Placeholder
     abilities.html        Ability CRUD surface
+    tool_configs.html     API key / integration secrets surface
     gap_proposals.html    Proposal review and dispatch surface
     gap_tasks.html        Skill-creation task tracking surface
     partials/

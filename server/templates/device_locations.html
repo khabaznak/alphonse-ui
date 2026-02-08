@@ -13,9 +13,43 @@
 
   <form method="post" action="/device-locations" class="mb-4 space-y-2 rounded-lg border border-slate-800 bg-slate-950/50 p-3">
     <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Create Mapping</div>
+    <div class="grid gap-2 sm:grid-cols-2">
+      <label class="block space-y-1">
+        <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">principal_id *</span>
+        <input name="principal_id" type="text" placeholder="person-alex" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+      </label>
+      <label class="block space-y-1">
+        <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">device_id *</span>
+        <input name="device_id" type="text" placeholder="pixel-001" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+      </label>
+    </div>
+    <div class="grid gap-2 sm:grid-cols-2">
+      <label class="block space-y-1">
+        <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">latitude *</span>
+        <input name="latitude" type="number" step="any" placeholder="20.68" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+      </label>
+      <label class="block space-y-1">
+        <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">longitude *</span>
+        <input name="longitude" type="number" step="any" placeholder="-103.34" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+      </label>
+    </div>
+    <div class="grid gap-2 sm:grid-cols-2">
+      <label class="block space-y-1">
+        <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">accuracy_meters</span>
+        <input name="accuracy_meters" type="number" step="any" placeholder="8.0" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+      </label>
+      <label class="block space-y-1">
+        <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">source</span>
+        <input name="source" type="text" value="alphonse_link" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+      </label>
+    </div>
     <label class="block space-y-1">
-      <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">payload_json</span>
-      <textarea name="payload_json" rows="5" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 font-mono text-xs text-slate-100" placeholder='{"device_id":"iphone-1","location_id":"home"}'></textarea>
+      <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">observed_at (ISO8601)</span>
+      <input name="observed_at" type="text" placeholder="2026-02-08T18:04:12Z" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+    </label>
+    <label class="block space-y-1">
+      <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">metadata_json</span>
+      <textarea name="metadata_json" rows="4" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 font-mono text-xs text-slate-100" placeholder='{"battery":85,"provider":"gps"}'></textarea>
     </label>
     <button class="inline-flex items-center rounded-md border border-slate-600 bg-slate-800 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-slate-100 hover:bg-slate-700" type="submit">Create</button>
   </form>
@@ -24,8 +58,10 @@
   <div class="space-y-2">
     {% for item in device_locations %}
     <article class="rounded-lg border border-slate-800 bg-slate-950/50 p-3">
-      <div class="text-sm text-slate-100">{{ item.get("device_id") or "unknown-device" }} -> {{ item.get("location_id") or "unknown-location" }}</div>
-      <pre class="mt-2 max-h-36 overflow-auto rounded border border-slate-800 bg-slate-900/60 p-2 text-xs text-slate-400">{{ item }}</pre>
+      <div class="text-sm text-slate-100">{{ item.get("device_id") or "unknown-device" }} @ {{ item.get("principal_id") or "unknown-principal" }}</div>
+      <div class="mt-1 text-xs text-slate-400">coords: {{ item.get("latitude") }}, {{ item.get("longitude") }} · accuracy {{ item.get("accuracy_meters") }}</div>
+      <div class="mt-1 text-xs text-slate-500">observed_at: {{ item.get("observed_at") }} · source {{ item.get("source") }}</div>
+      <pre class="mt-2 max-h-36 overflow-auto rounded border border-slate-800 bg-slate-900/60 p-2 text-xs text-slate-500">{{ item }}</pre>
     </article>
     {% endfor %}
   </div>

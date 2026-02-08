@@ -417,6 +417,53 @@ class AlphonseClient:
             return {"ok": False, "status": "unavailable_or_invalid"}
         return {"ok": True, "status": "created", "item": item}
 
+    def list_tool_configs(self, limit: int = 100) -> Optional[List[Dict[str, object]]]:
+        response = self._request_json(
+            "GET",
+            f"/agent/tool-configs?limit={limit}",
+            payload=None,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        return self._extract_items_list(response)
+
+    def get_tool_config(self, config_id: str) -> Optional[Dict[str, object]]:
+        encoded = quote(config_id, safe="")
+        response = self._request_json(
+            "GET",
+            f"/agent/tool-configs/{encoded}",
+            payload=None,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        return self._extract_item(response)
+
+    def create_tool_config(self, payload: Dict[str, object]) -> Dict[str, object]:
+        response = self._request_json(
+            "POST",
+            "/agent/tool-configs",
+            payload=payload,
+            timeout=8.0,
+            unwrap_data=False,
+        )
+        item = self._extract_item(response)
+        if item is None:
+            return {"ok": False, "status": "unavailable_or_invalid"}
+        return {"ok": True, "status": "created", "item": item}
+
+    def delete_tool_config(self, config_id: str) -> Dict[str, object]:
+        encoded = quote(config_id, safe="")
+        response = self._request_json(
+            "DELETE",
+            f"/agent/tool-configs/{encoded}",
+            payload=None,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        if response is None:
+            return {"ok": False, "status": "missing_or_unavailable"}
+        return {"ok": True, "status": "deleted"}
+
     def _request_json(
         self,
         method: str,

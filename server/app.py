@@ -173,6 +173,7 @@ def nav_sections() -> List[Dict[str, object]]:
                 {"label": "Onboarding Profiles", "path": "/onboarding/profiles"},
                 {"label": "Locations", "path": "/locations"},
                 {"label": "Device Locations", "path": "/device-locations"},
+                {"label": "API Keys", "path": "/tool-configs"},
             ],
         },
         {
@@ -299,6 +300,26 @@ def _parse_json_list(raw: str) -> Optional[List[object]]:
     return parsed
 
 
+def _parse_float(raw: str) -> Optional[float]:
+    if not raw.strip():
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        return None
+
+
+def _parse_bool(raw: str, default: bool = False) -> bool:
+    if raw is None:
+        return default
+    value = raw.strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
 def _parse_delegate(raw: Dict[str, object]) -> Optional[Delegate]:
     delegate_id = str(raw.get("id") or "").strip()
     name = str(raw.get("name") or "").strip()
@@ -359,6 +380,60 @@ def integrations() -> str:
     return render_template("integrations.html", **page_context("Integrations"))
 
 
+@app.get("/tool-configs")
+def tool_configs() -> str:
+    limit = _query_int(request.args.get("limit"), default=100, min_value=1, max_value=1000)
+    configs = ALPHONSE.list_tool_configs(limit=limit) or []
+    selected_config_id = (request.args.get("config_id") or "").strip()
+    selected_config = None
+    if selected_config_id:
+        selected_config = ALPHONSE.get_tool_config(selected_config_id)
+    return render_template(
+        "tool_configs.html",
+        configs=configs,
+        selected_config_id=selected_config_id,
+        selected_config=selected_config,
+        selected_limit=limit,
+        notice=(request.args.get("notice") or "").strip(),
+        error=(request.args.get("error") or "").strip(),
+        **page_context("Tool Configs"),
+    )
+
+
+@app.post("/tool-configs")
+def tool_configs_create() -> Response:
+    tool_key = (request.form.get("tool_key") or "").strip()
+    name = (request.form.get("name") or "").strip()
+    api_key = (request.form.get("api_key") or "").strip()
+    is_active = _parse_bool(request.form.get("is_active") or "true", default=True)
+    config_extra_raw = (request.form.get("config_json") or "").strip()
+    config_extra = _parse_json_dict(config_extra_raw) if config_extra_raw else {}
+    if config_extra is None:
+        return redirect(url_for("tool_configs", notice="", error="config_json must be a JSON object"))
+    if not tool_key or not name or not api_key:
+        return redirect(url_for("tool_configs", notice="", error="tool_key, name, and api_key are required"))
+    config_payload = {"api_key": api_key}
+    config_payload.update(config_extra)
+    payload = {
+        "tool_key": tool_key,
+        "name": name,
+        "config": config_payload,
+        "is_active": is_active,
+    }
+    result = ALPHONSE.create_tool_config(payload)
+    if not result.get("ok"):
+        return redirect(url_for("tool_configs", notice="", error=f"Failed to create tool config for {tool_key}"))
+    return redirect(url_for("tool_configs", notice=f"Created tool config for {tool_key}", error=""))
+
+
+@app.post("/tool-configs/<path:config_id>/delete")
+def tool_configs_delete(config_id: str) -> Response:
+    result = ALPHONSE.delete_tool_config(config_id)
+    if not result.get("ok"):
+        return redirect(url_for("tool_configs", notice="", error=f"Tool config {config_id} not found"))
+    return redirect(url_for("tool_configs", notice=f"Deleted tool config {config_id}", error=""))
+
+
 @app.get("/onboarding/profiles")
 def onboarding_profiles() -> str:
     limit = _query_int(request.args.get("limit"), default=100, min_value=1, max_value=1000)
@@ -381,13 +456,31 @@ def onboarding_profiles() -> str:
 
 @app.post("/onboarding/profiles")
 def onboarding_profiles_create() -> Response:
-    payload_raw = (request.form.get("payload_json") or "").strip()
-    payload = _parse_json_dict(payload_raw)
-    if payload is None:
-        return redirect(url_for("onboarding_profiles", notice="", error="payload_json must be a JSON object"))
-    principal_id = str(payload.get("principal_id") or "").strip()
+    principal_id = (request.form.get("principal_id") or "").strip()
+    state = (request.form.get("state") or "").strip()
+    primary_role = (request.form.get("primary_role") or "").strip()
+    next_steps_raw = (request.form.get("next_steps") or "").strip()
+    resume_token = (request.form.get("resume_token") or "").strip()
+    completed_at = (request.form.get("completed_at") or "").strip()
+    next_steps = []
+    if next_steps_raw:
+        if next_steps_raw.lstrip().startswith("["):
+            parsed_steps = _parse_json_list(next_steps_raw)
+            if parsed_steps is None:
+                return redirect(url_for("onboarding_profiles", notice="", error="next_steps must be JSON array or CSV"))
+            next_steps = [str(item) for item in parsed_steps]
+        else:
+            next_steps = [item.strip() for item in next_steps_raw.split(",") if item.strip()]
     if not principal_id:
-        return redirect(url_for("onboarding_profiles", notice="", error="payload_json.principal_id is required"))
+        return redirect(url_for("onboarding_profiles", notice="", error="principal_id is required"))
+    payload = {
+        "principal_id": principal_id,
+        "state": state or "in_progress",
+        "primary_role": primary_role or None,
+        "next_steps": next_steps,
+        "resume_token": resume_token or None,
+        "completed_at": completed_at or None,
+    }
     result = ALPHONSE.create_onboarding_profile(payload)
     if not result.get("ok"):
         return redirect(url_for("onboarding_profiles", notice="", error=f"Failed to create profile {principal_id}"))
@@ -424,17 +517,35 @@ def locations() -> str:
 
 @app.post("/locations")
 def locations_create() -> Response:
-    payload_raw = (request.form.get("payload_json") or "").strip()
-    payload = _parse_json_dict(payload_raw)
-    if payload is None:
-        return redirect(url_for("locations", notice="", error="payload_json must be a JSON object"))
-    location_id = str(payload.get("location_id") or payload.get("id") or "").strip()
-    if not location_id:
-        return redirect(url_for("locations", notice="", error="payload_json.location_id is required"))
+    principal_id = (request.form.get("principal_id") or "").strip()
+    label = (request.form.get("label") or "").strip()
+    address_text = (request.form.get("address_text") or "").strip()
+    latitude_raw = (request.form.get("latitude") or "").strip()
+    longitude_raw = (request.form.get("longitude") or "").strip()
+    source = (request.form.get("source") or "").strip()
+    confidence_raw = (request.form.get("confidence") or "").strip()
+    is_active = _parse_bool(request.form.get("is_active") or "true", default=True)
+    location_id = (request.form.get("location_id") or "").strip()
+    latitude = _parse_float(latitude_raw)
+    longitude = _parse_float(longitude_raw)
+    confidence = _parse_float(confidence_raw) if confidence_raw else None
+    if not principal_id or not label or latitude is None or longitude is None:
+        return redirect(url_for("locations", notice="", error="principal_id, label, latitude, longitude are required"))
+    payload = {
+        "location_id": location_id or None,
+        "principal_id": principal_id,
+        "label": label,
+        "address_text": address_text or None,
+        "latitude": latitude,
+        "longitude": longitude,
+        "source": source or "user",
+        "confidence": confidence,
+        "is_active": is_active,
+    }
     result = ALPHONSE.create_location(payload)
     if not result.get("ok"):
         return redirect(url_for("locations", notice="", error=f"Failed to create location {location_id}"))
-    return redirect(url_for("locations", notice=f"Created location {location_id}", error=""))
+    return redirect(url_for("locations", notice=f"Created location {location_id or label}", error=""))
 
 
 @app.post("/locations/<path:location_id>/delete")
@@ -459,10 +570,32 @@ def device_locations() -> str:
 
 @app.post("/device-locations")
 def device_locations_create() -> Response:
-    payload_raw = (request.form.get("payload_json") or "").strip()
-    payload = _parse_json_dict(payload_raw)
-    if payload is None:
-        return redirect(url_for("device_locations", notice="", error="payload_json must be a JSON object"))
+    principal_id = (request.form.get("principal_id") or "").strip()
+    device_id = (request.form.get("device_id") or "").strip()
+    latitude_raw = (request.form.get("latitude") or "").strip()
+    longitude_raw = (request.form.get("longitude") or "").strip()
+    accuracy_raw = (request.form.get("accuracy_meters") or "").strip()
+    source = (request.form.get("source") or "").strip()
+    observed_at = (request.form.get("observed_at") or "").strip()
+    metadata_raw = (request.form.get("metadata_json") or "").strip()
+    metadata = _parse_json_dict(metadata_raw) if metadata_raw else {}
+    if metadata is None:
+        return redirect(url_for("device_locations", notice="", error="metadata_json must be a JSON object"))
+    latitude = _parse_float(latitude_raw)
+    longitude = _parse_float(longitude_raw)
+    accuracy = _parse_float(accuracy_raw) if accuracy_raw else None
+    if not principal_id or not device_id or latitude is None or longitude is None:
+        return redirect(url_for("device_locations", notice="", error="principal_id, device_id, latitude, longitude are required"))
+    payload = {
+        "principal_id": principal_id,
+        "device_id": device_id,
+        "latitude": latitude,
+        "longitude": longitude,
+        "accuracy_meters": accuracy,
+        "source": source or "alphonse_link",
+        "observed_at": observed_at or None,
+        "metadata": metadata,
+    }
     result = ALPHONSE.create_device_location(payload)
     if not result.get("ok"):
         return redirect(url_for("device_locations", notice="", error="Failed to create device-location mapping"))

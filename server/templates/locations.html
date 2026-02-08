@@ -29,10 +29,53 @@
 
     <form method="post" action="/locations" class="space-y-2 rounded-lg border border-slate-800 bg-slate-950/50 p-3">
       <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Create Location</div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">principal_id *</span>
+          <input name="principal_id" type="text" placeholder="person-alex" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">label *</span>
+          <input name="label" type="text" placeholder="home" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+      </div>
       <label class="block space-y-1">
-        <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">payload_json</span>
-        <textarea name="payload_json" rows="5" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 font-mono text-xs text-slate-100" placeholder='{"location_id":"home","name":"Home","timezone":"America/Chicago"}'></textarea>
+        <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">address_text</span>
+        <input name="address_text" type="text" placeholder="Av. Vallarta 123, Guadalajara..." class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
       </label>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">latitude *</span>
+          <input name="latitude" type="number" step="any" placeholder="20.67" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">longitude *</span>
+          <input name="longitude" type="number" step="any" placeholder="-103.35" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+      </div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">source</span>
+          <input name="source" type="text" value="user" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">confidence</span>
+          <input name="confidence" type="number" step="any" value="0.9" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+      </div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">is_active</span>
+          <select name="is_active" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100">
+            <option value="true" selected>true</option>
+            <option value="false">false</option>
+          </select>
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">location_id (optional)</span>
+          <input name="location_id" type="text" placeholder="leave blank to auto" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+      </div>
       <button class="inline-flex items-center rounded-md border border-slate-600 bg-slate-800 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-slate-100 hover:bg-slate-700" type="submit">Create</button>
     </form>
   </div>
@@ -57,7 +100,14 @@
         </form>
         {% endif %}
       </div>
-      <pre class="mt-2 max-h-36 overflow-auto rounded border border-slate-800 bg-slate-900/60 p-2 text-xs text-slate-400">{{ item }}</pre>
+      <div class="mt-2 grid gap-1 text-xs text-slate-400">
+        <div>label: {{ item.get("label") }}</div>
+        <div>principal: {{ item.get("principal_id") }}</div>
+        <div>coords: {{ item.get("latitude") }}, {{ item.get("longitude") }}</div>
+        <div>source: {{ item.get("source") }} · confidence: {{ item.get("confidence") }}</div>
+        <div>active: {{ item.get("is_active") }}</div>
+      </div>
+      <pre class="mt-2 max-h-36 overflow-auto rounded border border-slate-800 bg-slate-900/60 p-2 text-xs text-slate-500">{{ item }}</pre>
     </article>
     {% endfor %}
   </div>

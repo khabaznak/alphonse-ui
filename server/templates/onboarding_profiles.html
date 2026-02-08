@@ -29,9 +29,33 @@
 
     <form method="post" action="/onboarding/profiles" class="space-y-2 rounded-lg border border-slate-800 bg-slate-950/50 p-3">
       <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Create Profile</div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">principal_id *</span>
+          <input name="principal_id" type="text" placeholder="person-alex" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">state</span>
+          <input name="state" type="text" value="in_progress" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+      </div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">primary_role</span>
+          <input name="primary_role" type="text" value="admin" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">resume_token</span>
+          <input name="resume_token" type="text" placeholder="resume-123" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+      </div>
       <label class="block space-y-1">
-        <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">payload_json</span>
-        <textarea name="payload_json" rows="5" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 font-mono text-xs text-slate-100" placeholder='{"principal_id":"user-1","profile":{"name":"Alex"}}'></textarea>
+        <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">next_steps (CSV or JSON array)</span>
+        <input name="next_steps" type="text" value='["home_location","work_location"]' class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 font-mono text-xs text-slate-100" />
+      </label>
+      <label class="block space-y-1">
+        <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">completed_at (ISO8601 or blank)</span>
+        <input name="completed_at" type="text" placeholder="2026-02-08T18:04:12Z" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
       </label>
       <button class="inline-flex items-center rounded-md border border-slate-600 bg-slate-800 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-slate-100 hover:bg-slate-700" type="submit">Create</button>
     </form>
@@ -57,7 +81,14 @@
         </form>
         {% endif %}
       </div>
-      <pre class="mt-2 max-h-36 overflow-auto rounded border border-slate-800 bg-slate-900/60 p-2 text-xs text-slate-400">{{ item }}</pre>
+      <div class="mt-2 grid gap-1 text-xs text-slate-400">
+        <div>state: {{ item.get("state") }}</div>
+        <div>primary_role: {{ item.get("primary_role") }}</div>
+        <div>next_steps: {{ item.get("next_steps") }}</div>
+        <div>resume_token: {{ item.get("resume_token") }}</div>
+        <div>completed_at: {{ item.get("completed_at") }}</div>
+      </div>
+      <pre class="mt-2 max-h-36 overflow-auto rounded border border-slate-800 bg-slate-900/60 p-2 text-xs text-slate-500">{{ item }}</pre>
     </article>
     {% endfor %}
   </div>
