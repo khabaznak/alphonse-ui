@@ -158,8 +158,9 @@ def nav_sections() -> List[Dict[str, object]]:
             ],
         },
         {
-            "title": "Skills",
+            "title": "Abilities",
             "items": [
+                {"label": "Abilities", "path": "/abilities"},
                 {"label": "Gap Proposals", "path": "/skills/gap-proposals"},
                 {"label": "Gap Tasks", "path": "/skills/gap-tasks"},
             ],
@@ -249,9 +250,10 @@ def external_sections() -> List[Dict[str, object]]:
     ]
 
 
-def page_context(title: str, show_context: bool = False) -> Dict[str, object]:
+def page_context(title: str, show_context: bool = False, subtitle: Optional[str] = None) -> Dict[str, object]:
     return {
         "title": title,
+        "subtitle": subtitle or "Server-rendered HTMX control surface",
         "now": now_iso(),
         "show_context": show_context,
         "nav_sections": nav_sections(),
@@ -268,6 +270,30 @@ def _query_int(raw: Optional[str], *, default: int, min_value: int, max_value: i
     except ValueError:
         return default
     return max(min_value, min(max_value, parsed))
+
+
+def _parse_json_dict(raw: str) -> Optional[Dict[str, object]]:
+    if not raw.strip():
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    return parsed
+
+
+def _parse_json_list(raw: str) -> Optional[List[object]]:
+    if not raw.strip():
+        return []
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(parsed, list):
+        return None
+    return parsed
 
 
 def _parse_delegate(raw: Dict[str, object]) -> Optional[Delegate]:
@@ -334,6 +360,126 @@ def integrations() -> str:
 def delegates_list() -> str:
     delegates = list(get_delegate_registry().values())
     return render_template("delegates.html", delegates=delegates, **page_context("Delegates"))
+
+
+@app.get("/abilities")
+def abilities() -> str:
+    enabled_filter = (request.args.get("enabled_only") or "all").strip().lower()
+    enabled_only: Optional[bool] = None
+    if enabled_filter in {"true", "1", "yes", "enabled"}:
+        enabled_only = True
+        enabled_filter = "true"
+    elif enabled_filter in {"false", "0", "no", "disabled"}:
+        enabled_only = False
+        enabled_filter = "false"
+    else:
+        enabled_filter = "all"
+    limit = _query_int(request.args.get("limit"), default=50, min_value=1, max_value=500)
+    items = ALPHONSE.list_abilities(enabled_only=enabled_only, limit=limit) or []
+    return render_template(
+        "abilities.html",
+        abilities=items,
+        selected_enabled_only=enabled_filter,
+        selected_limit=limit,
+        notice=(request.args.get("notice") or "").strip(),
+        error=(request.args.get("error") or "").strip(),
+        **page_context("Abilities"),
+    )
+
+
+@app.post("/abilities")
+def abilities_create() -> Response:
+    intent_name = (request.form.get("intent_name") or "").strip()
+    if not intent_name:
+        return redirect(url_for("abilities", notice="", error="intent_name is required"))
+
+    kind = (request.form.get("kind") or "").strip()
+    source = (request.form.get("source") or "").strip()
+    enabled_raw = (request.form.get("enabled") or "true").strip().lower()
+    enabled = enabled_raw in {"1", "true", "yes", "on"}
+
+    tools_raw = request.form.get("tools_json") or "[]"
+    tools = _parse_json_list(tools_raw)
+    if tools is None:
+        return redirect(url_for("abilities", notice="", error="tools_json must be a JSON array"))
+
+    spec_raw = request.form.get("spec_json") or "{}"
+    spec = _parse_json_dict(spec_raw)
+    if spec is None:
+        return redirect(url_for("abilities", notice="", error="spec_json must be a JSON object"))
+    spec_intent = spec.get("intent_name")
+    if spec_intent is None:
+        spec["intent_name"] = intent_name
+    elif str(spec_intent) != intent_name:
+        return redirect(url_for("abilities", notice="", error="spec.intent_name must match intent_name"))
+
+    payload: Dict[str, object] = {
+        "intent_name": intent_name,
+        "enabled": enabled,
+        "tools": tools,
+        "spec": spec,
+    }
+    if kind:
+        payload["kind"] = kind
+    if source:
+        payload["source"] = source
+
+    result = ALPHONSE.create_ability(payload)
+    if not result.get("ok"):
+        return redirect(url_for("abilities", notice="", error=f"Failed to create ability {intent_name}"))
+    return redirect(url_for("abilities", notice=f"Created ability {intent_name}", error=""))
+
+
+@app.post("/abilities/<path:intent_name>/update")
+def abilities_update(intent_name: str) -> Response:
+    updates: Dict[str, object] = {}
+    kind = (request.form.get("kind") or "").strip()
+    source = (request.form.get("source") or "").strip()
+    enabled_choice = (request.form.get("enabled_choice") or "unchanged").strip().lower()
+    tools_raw = (request.form.get("tools_json") or "").strip()
+    spec_raw = (request.form.get("spec_json") or "").strip()
+
+    if kind:
+        updates["kind"] = kind
+    if source:
+        updates["source"] = source
+    if enabled_choice in {"true", "false"}:
+        updates["enabled"] = enabled_choice == "true"
+    if tools_raw:
+        tools = _parse_json_list(tools_raw)
+        if tools is None:
+            return redirect(url_for("abilities", notice="", error=f"Invalid tools_json for {intent_name}"))
+        updates["tools"] = tools
+    if spec_raw:
+        spec = _parse_json_dict(spec_raw)
+        if spec is None:
+            return redirect(url_for("abilities", notice="", error=f"Invalid spec_json for {intent_name}"))
+        spec_intent = spec.get("intent_name")
+        if spec_intent is not None and str(spec_intent) != intent_name:
+            return redirect(
+                url_for(
+                    "abilities",
+                    notice="",
+                    error=f"spec.intent_name mismatch for {intent_name}",
+                )
+            )
+        updates["spec"] = spec
+
+    if not updates:
+        return redirect(url_for("abilities", notice="", error=f"No updates provided for {intent_name}"))
+
+    result = ALPHONSE.update_ability(intent_name, updates)
+    if not result.get("ok"):
+        return redirect(url_for("abilities", notice="", error=f"Failed to update {intent_name}"))
+    return redirect(url_for("abilities", notice=f"Updated ability {intent_name}", error=""))
+
+
+@app.post("/abilities/<path:intent_name>/delete")
+def abilities_delete(intent_name: str) -> Response:
+    result = ALPHONSE.delete_ability(intent_name)
+    if not result.get("ok"):
+        return redirect(url_for("abilities", notice="", error=f"Ability {intent_name} not found"))
+    return redirect(url_for("abilities", notice=f"Deleted ability {intent_name}", error=""))
 
 
 @app.get("/skills/gap-proposals")

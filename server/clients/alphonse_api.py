@@ -5,6 +5,7 @@ import os
 import time
 from typing import Any, Dict, List, Optional
 from urllib import error, request as urlrequest
+from urllib.parse import quote
 
 
 class AlphonseClient:
@@ -215,6 +216,90 @@ class AlphonseClient:
             return {"ok": False, "status": "invalid"}
         return {"ok": True, "status": "updated", "item": item}
 
+    def list_abilities(
+        self,
+        enabled_only: Optional[bool] = None,
+        limit: int = 50,
+    ) -> Optional[List[Dict[str, object]]]:
+        params = [f"limit={limit}"]
+        if enabled_only is not None:
+            params.append(f"enabled_only={'true' if enabled_only else 'false'}")
+        path = "/agent/abilities"
+        if params:
+            path = f"{path}?{'&'.join(params)}"
+        response = self._request_json("GET", path, payload=None, timeout=5.0, unwrap_data=False)
+        return self._extract_items_list(response)
+
+    def get_ability(self, intent_name: str) -> Optional[Dict[str, object]]:
+        encoded = quote(intent_name, safe="")
+        response = self._request_json(
+            "GET",
+            f"/agent/abilities/{encoded}",
+            payload=None,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        if isinstance(response, dict):
+            item = response.get("item")
+            if isinstance(item, dict):
+                return item
+            if "intent_name" in response and isinstance(response.get("intent_name"), str):
+                return response
+        return None
+
+    def create_ability(self, payload: Dict[str, object]) -> Dict[str, object]:
+        response = self._request_json(
+            "POST",
+            "/agent/abilities",
+            payload=payload,
+            timeout=8.0,
+            unwrap_data=False,
+        )
+        if not isinstance(response, dict):
+            return {"ok": False, "status": "unavailable"}
+        item = response.get("item")
+        if isinstance(item, dict):
+            return {"ok": True, "status": "created", "item": item}
+        if "intent_name" in response and isinstance(response.get("intent_name"), str):
+            return {"ok": True, "status": "created", "item": response}
+        return {"ok": False, "status": "invalid"}
+
+    def update_ability(self, intent_name: str, updates: Dict[str, object]) -> Dict[str, object]:
+        encoded = quote(intent_name, safe="")
+        response = self._request_json(
+            "PATCH",
+            f"/agent/abilities/{encoded}",
+            payload=updates,
+            timeout=8.0,
+            unwrap_data=False,
+        )
+        if not isinstance(response, dict):
+            return {"ok": False, "status": "unavailable"}
+        item = response.get("item")
+        if isinstance(item, dict):
+            return {"ok": True, "status": "updated", "item": item}
+        if "intent_name" in response and isinstance(response.get("intent_name"), str):
+            return {"ok": True, "status": "updated", "item": response}
+        return {"ok": False, "status": "invalid"}
+
+    def delete_ability(self, intent_name: str) -> Dict[str, object]:
+        encoded = quote(intent_name, safe="")
+        response = self._request_json(
+            "DELETE",
+            f"/agent/abilities/{encoded}",
+            payload=None,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        if response is None:
+            return {"ok": False, "status": "missing_or_unavailable"}
+        if isinstance(response, dict):
+            deleted = response.get("deleted")
+            if isinstance(deleted, bool):
+                return {"ok": deleted, "status": "deleted" if deleted else "not_deleted", "data": response}
+            return {"ok": True, "status": "deleted", "data": response}
+        return {"ok": True, "status": "deleted"}
+
     def _request_json(
         self,
         method: str,
@@ -265,6 +350,18 @@ class AlphonseClient:
             if isinstance(candidates, list):
                 items = [item for item in candidates if self._valid_delegate(item)]
                 return items if items else None
+        return None
+
+    def _extract_items_list(self, payload: Optional[Any]) -> Optional[List[Dict[str, object]]]:
+        if isinstance(payload, list):
+            return [item for item in payload if isinstance(item, dict)]
+        if isinstance(payload, dict):
+            items = payload.get("items")
+            if isinstance(items, list):
+                return [item for item in items if isinstance(item, dict)]
+            abilities = payload.get("abilities")
+            if isinstance(abilities, list):
+                return [item for item in abilities if isinstance(item, dict)]
         return None
 
     def _extract_delegate(self, payload: Optional[Any]) -> Optional[Dict[str, object]]:

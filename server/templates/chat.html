@@ -25,18 +25,15 @@
     <form class="composer space-y-3" hx-post="/chat/messages" hx-target="#chat-timeline" hx-swap="innerHTML">
       <label class="block space-y-1">
         <span class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Message</span>
-        <textarea class="w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-slate-500 focus:outline-none" name="message" rows="3" placeholder="Write a command or signal"></textarea>
+        <div class="rounded-lg border border-slate-700 bg-slate-950/60 px-2 py-2 focus-within:border-slate-500">
+          <div class="flex items-end gap-2">
+            <textarea class="min-h-[4.75rem] w-full resize-y border-0 bg-transparent px-1 py-1 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none" name="message" rows="3" placeholder="Write a command or signal"></textarea>
+            <button class="inline-flex shrink-0 items-center rounded-md border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-100 hover:bg-slate-700" type="submit">Send</button>
+          </div>
+        </div>
       </label>
       <input type="hidden" name="correlation_id" value="" />
-      <div>
-        <button class="inline-flex items-center rounded-md border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-100 hover:bg-slate-700" type="submit">Send</button>
-      </div>
     </form>
   </section>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script src="/static/js/presence_island.js" defer></script>
-<script src="/static/js/chat_composer_island.js" defer></script>
 {% endblock %}

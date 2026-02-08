@@ -15,6 +15,7 @@ Alphonse UI is an interface organ: an extremity (explicit commands), a sense (si
 This repo provides the initial scaffolding and HTMX skeleton:
 
 - Main Chat screen as the central plaza.
+- Abilities CRUD screen (list/create/patch/delete with enabled-only filtering).
 - Gap Proposals review screen (coalesce, approve/reject, dispatch).
 - Gap Tasks tracking screen (open/done workflow for skill creation tasks).
 - Left internal navigation with collapsible sections.
@@ -37,7 +38,7 @@ export ALPHONSE_API_BASE_URL=http://localhost:8001
 # export ALPHONSE_API_MESSAGE_TIMEOUT_SECONDS=90
 # optional UI display name for metadata.user_name:
 # export ALPHONSE_UI_USER_NAME="Alphonse UI"
-python -m flask --app server/app.py run --port 5001
+python -m flask --app server/app.py run --port 5001 --debug
 ```
 
 Open `http://localhost:5001`.
@@ -54,6 +55,7 @@ server/
     chat.html             Main plaza
     admin.html            Placeholder
     integrations.html     Placeholder
+    abilities.html        Ability CRUD surface
     gap_proposals.html    Proposal review and dispatch surface
     gap_tasks.html        Skill-creation task tracking surface
     partials/

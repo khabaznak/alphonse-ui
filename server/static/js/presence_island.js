@@ -1,10 +1,16 @@
 (() => {
-  const root = document.getElementById("presence-island");
-  if (!root) return;
+  let activeStream = null;
 
   const POLL_TRIGGER = "load, every 20s";
 
-  const enablePollingFallback = () => {
+  const closeActiveStream = () => {
+    if (activeStream) {
+      activeStream.close();
+      activeStream = null;
+    }
+  };
+
+  const enablePollingFallback = (root) => {
     root.setAttribute("hx-get", "/ui/presence");
     root.setAttribute("hx-trigger", POLL_TRIGGER);
     root.setAttribute("hx-swap", "innerHTML");
@@ -13,7 +19,7 @@
     }
   };
 
-  const useSingleLoad = () => {
+  const useSingleLoad = (root) => {
     root.setAttribute("hx-get", "/ui/presence");
     root.setAttribute("hx-trigger", "load");
     root.setAttribute("hx-swap", "innerHTML");
@@ -22,7 +28,7 @@
     }
   };
 
-  const renderPresence = (payload) => {
+  const renderPresence = (root, payload) => {
     const presence = payload.presence || {};
     const status = presence.status || "unknown";
     const note = presence.note || "No note";
@@ -46,31 +52,59 @@
     `;
   };
 
-  if (!("EventSource" in window)) {
-    enablePollingFallback();
-    return;
-  }
+  const mount = (scope) => {
+    const root =
+      scope && scope.id === "presence-island"
+        ? scope
+        : scope && scope.querySelector
+          ? scope.querySelector("#presence-island")
+          : document.getElementById("presence-island");
+    if (!root) return;
+    if (root.dataset.presenceIslandMounted === "1") return;
+    root.dataset.presenceIslandMounted = "1";
 
-  useSingleLoad();
+    closeActiveStream();
 
-  const stream = new EventSource("/stream/presence");
+    if (!("EventSource" in window)) {
+      enablePollingFallback(root);
+      return;
+    }
 
-  stream.addEventListener("presence", (event) => {
-    try {
-      const payload = JSON.parse(event.data);
-      renderPresence(payload);
-    } catch {
-      enablePollingFallback();
-      stream.close();
+    useSingleLoad(root);
+
+    activeStream = new EventSource("/stream/presence");
+    const stream = activeStream;
+
+    stream.addEventListener("presence", (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        renderPresence(root, payload);
+      } catch {
+        enablePollingFallback(root);
+        closeActiveStream();
+      }
+    });
+
+    stream.addEventListener("error", () => {
+      enablePollingFallback(root);
+      closeActiveStream();
+    });
+  };
+
+  mount(document);
+
+  document.body.addEventListener("htmx:load", (event) => {
+    mount(event.target);
+  });
+
+  document.body.addEventListener("htmx:beforeSwap", (event) => {
+    const target = event.detail && event.detail.target;
+    if (target && target.id === "main-panel") {
+      closeActiveStream();
     }
   });
 
-  stream.addEventListener("error", () => {
-    enablePollingFallback();
-    stream.close();
-  });
-
   window.addEventListener("beforeunload", () => {
-    stream.close();
+    closeActiveStream();
   });
 })();

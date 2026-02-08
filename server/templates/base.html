@@ -19,20 +19,39 @@
     </script>
     <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
   </head>
-  <body class="min-h-screen bg-slate-950 text-slate-100 antialiased">
-    <div class="min-h-screen lg:grid lg:grid-cols-[16rem_minmax(0,1fr)_22rem]">
-      <aside class="border-b border-slate-800 bg-slate-900/80 px-4 py-4 backdrop-blur lg:border-b-0 lg:border-r lg:px-5 lg:py-6" aria-label="Internal navigation">
-        <div class="mb-5">
-          <div class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-300">Alphonse UI</div>
-          <div class="mt-1 text-xs text-slate-500">Interface organ</div>
+  <body class="h-screen overflow-hidden bg-slate-950 text-slate-100 antialiased">
+    <div class="h-screen lg:grid lg:grid-cols-[16rem_minmax(0,1fr)_22rem]">
+      <aside class="h-full overflow-y-auto border-b border-slate-800 bg-slate-900/80 px-4 py-4 backdrop-blur lg:border-b-0 lg:border-r lg:px-5 lg:py-6" aria-label="Internal navigation">
+        <div class="mb-5 rounded-lg border border-slate-800/80 bg-slate-900/60 p-3">
+          <div class="flex items-center gap-3">
+            <img
+              src="/static/img/alphonse-logo.jpeg"
+              alt="Alphonse UI logo"
+              width="80"
+              height="80"
+              class="h-[80px] w-[80px] rounded-md border border-slate-700/80 object-cover shadow-sm"
+            />
+            <div>
+              <div class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-200">Alphonse</div>
+              <div class="mt-1 text-xs text-slate-500">Command Center</div>
+            </div>
+          </div>
         </div>
         <div class="space-y-2">
           {% for section in nav_sections %}
-          <details class="rounded-lg border border-slate-800 bg-slate-900/70" open>
+          <details class="rounded-lg border border-slate-800 bg-slate-900/70">
             <summary class="cursor-pointer list-none px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{{ section["title"] }}</summary>
             <div class="space-y-1 px-2 pb-2">
               {% for item in section["items"] %}
-              <a class="block rounded-md px-2 py-1.5 text-sm transition {% if item["path"] == path %}bg-slate-800 text-slate-100{% else %}text-slate-300 hover:bg-slate-800/70 hover:text-slate-100{% endif %}" href="{{ item["path"] }}">{{ item["label"] }}</a>
+              <a
+                class="block rounded-md px-2 py-1.5 text-sm transition {% if item["path"] == path %}bg-slate-800 text-slate-100{% else %}text-slate-300 hover:bg-slate-800/70 hover:text-slate-100{% endif %}"
+                href="{{ item["path"] }}"
+                hx-get="{{ item['path'] }}"
+                hx-target="#main-panel"
+                hx-select="#main-panel"
+                hx-swap="outerHTML"
+                hx-push-url="true"
+              >{{ item["label"] }}</a>
               {% endfor %}
             </div>
           </details>
@@ -40,20 +59,25 @@
         </div>
       </aside>
 
-      <main class="px-4 py-5 lg:px-8 lg:py-8">
-        <header class="mb-6 flex flex-wrap items-start justify-between gap-3">
+      <main id="main-panel" class="flex h-full min-h-0 flex-col overflow-hidden">
+        <header class="sticky top-0 z-20 border-b border-slate-800/80 bg-slate-950/85 px-4 py-4 backdrop-blur lg:px-8 lg:py-5">
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+              {% block top_bar_nav %}Contextual Options{% endblock %}
+            </div>
+            <div class="flex items-center gap-2">{% block header_actions %}{% endblock %}</div>
+          </div>
           <div>
             <h1 class="text-2xl font-semibold tracking-tight text-slate-100">{{ title }}</h1>
-            <p class="mt-1 text-xs text-slate-500">Last rendered {{ now }}</p>
+            <p class="mt-1 text-xs text-slate-500">{{ subtitle }} · Last rendered {{ now }}</p>
           </div>
-          <div class="flex items-center gap-2">{% block header_actions %}{% endblock %}</div>
         </header>
-        <section class="space-y-5">
+        <section class="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5 scroll-smooth lg:px-8 lg:py-8">
           {% block content %}{% endblock %}
         </section>
       </main>
 
-      <aside class="border-l border-slate-800 bg-slate-900/70 px-4 py-6 {% if not show_context %}hidden{% endif %} lg:block" aria-label="External context">
+      <aside class="h-full overflow-y-auto border-l border-slate-800 bg-slate-900/70 px-4 py-6 {% if not show_context %}hidden{% endif %} lg:block" aria-label="External context">
         <div class="mb-4">
           <div class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">External Context</div>
           <div class="mt-1 text-xs text-slate-500">World-facing scope</div>
@@ -74,6 +98,8 @@
         </div>
       </aside>
     </div>
+    <script src="/static/js/presence_island.js" defer></script>
+    <script src="/static/js/chat_composer_island.js" defer></script>
     {% block scripts %}{% endblock %}
   </body>
 </html>

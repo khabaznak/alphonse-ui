@@ -1,8 +1,9 @@
-<div class="rounded-lg border border-slate-800 bg-slate-900/70 p-3">
-  <div class="flex items-center justify-between text-[11px] uppercase tracking-[0.14em] text-slate-400">
-    <span>{{ message.role }}</span>
-    <span>{{ message.timestamp }}</span>
+<div class="flex {% if message.role == 'user' %}justify-end{% else %}justify-start{% endif %}">
+  <div class="w-full max-w-[50%] rounded-lg border border-slate-800 p-3 {% if message.role == 'user' %}bg-slate-800/80{% else %}bg-slate-900/70{% endif %}">
+    <div class="flex items-center justify-between text-[11px] uppercase tracking-[0.14em] text-slate-400">
+      <span>{{ message.role }}</span>
+      <span>{{ message.timestamp }}</span>
+    </div>
+    <div class="mt-2 text-sm text-slate-100">{{ message.content }}</div>
   </div>
-  <div class="mt-2 text-sm text-slate-100">{{ message.content }}</div>
-  <div class="mt-2 font-mono text-xs text-slate-500">Correlation {{ message.correlation_id }}</div>
 </div>
