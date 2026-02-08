@@ -80,6 +80,61 @@ class AlphonseClient:
         )
         return self._extract_items_list(response)
 
+    def get_user(self, user_id: str) -> Optional[Dict[str, object]]:
+        encoded = quote(user_id, safe="")
+        response = self._request_json(
+            "GET",
+            f"/agent/users/{encoded}",
+            payload=None,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        return self._extract_item(response)
+
+    def create_user(self, payload: Dict[str, object]) -> Dict[str, object]:
+        response = self._request_json(
+            "POST",
+            "/agent/users",
+            payload=payload,
+            timeout=8.0,
+            unwrap_data=False,
+        )
+        item = self._extract_item(response)
+        if item is None:
+            return {"ok": False, "status": "unavailable_or_invalid"}
+        return {"ok": True, "status": "created", "item": item}
+
+    def update_user(self, user_id: str, updates: Dict[str, object]) -> Dict[str, object]:
+        encoded = quote(user_id, safe="")
+        response = self._request_json(
+            "PATCH",
+            f"/agent/users/{encoded}",
+            payload=updates,
+            timeout=8.0,
+            unwrap_data=False,
+        )
+        if not isinstance(response, dict):
+            return {"ok": False, "status": "unavailable"}
+        item = response.get("item")
+        if isinstance(item, dict):
+            return {"ok": True, "status": "updated", "item": item}
+        if "user_id" in response and isinstance(response.get("user_id"), str):
+            return {"ok": True, "status": "updated", "item": response}
+        return {"ok": False, "status": "invalid"}
+
+    def delete_user(self, user_id: str) -> Dict[str, object]:
+        encoded = quote(user_id, safe="")
+        response = self._request_json(
+            "DELETE",
+            f"/agent/users/{encoded}",
+            payload=None,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        if response is None:
+            return {"ok": False, "status": "missing_or_unavailable"}
+        return {"ok": True, "status": "deleted"}
+
     def get_delegate(self, delegate_id: str) -> Optional[Dict[str, object]]:
         payload = self._request_json("GET", f"/api/v1/delegates/{delegate_id}", payload=None, timeout=3.0)
         delegate = self._extract_delegate(payload)
@@ -587,6 +642,8 @@ class AlphonseClient:
             if isinstance(item, dict):
                 return item
             if payload.get("id") is not None:
+                return payload
+            if payload.get("user_id") is not None:
                 return payload
             if payload.get("principal_id") is not None:
                 return payload

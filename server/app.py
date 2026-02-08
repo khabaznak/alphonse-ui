@@ -169,6 +169,7 @@ def nav_sections() -> List[Dict[str, object]]:
             "title": "Integrations",
             "items": [
                 {"label": "Integrations", "path": "/integrations"},
+                {"label": "Users", "path": "/users"},
                 {"label": "Delegates", "path": "/delegates"},
                 {"label": "Onboarding Profiles", "path": "/onboarding/profiles"},
                 {"label": "Locations", "path": "/locations"},
@@ -644,6 +645,85 @@ def device_locations_create() -> Response:
     if not result.get("ok"):
         return redirect(url_for("device_locations", notice="", error="Failed to create device-location mapping"))
     return redirect(url_for("device_locations", notice="Created device-location mapping", error=""))
+
+
+@app.get("/users")
+def users() -> str:
+    limit = _query_int(request.args.get("limit"), default=200, min_value=1, max_value=1000)
+    active_only_raw = (request.args.get("active_only") or "").strip()
+    active_only = _parse_bool(active_only_raw, default=False) if active_only_raw else None
+    items = ALPHONSE.list_users(active_only=active_only, limit=limit) or []
+    selected_user_id = (request.args.get("user_id") or "").strip()
+    selected_user = None
+    if selected_user_id:
+        selected_user = ALPHONSE.get_user(selected_user_id)
+    return render_template(
+        "users.html",
+        users=items,
+        selected_user_id=selected_user_id,
+        selected_user=selected_user,
+        selected_limit=limit,
+        selected_active_only=active_only_raw,
+        notice=(request.args.get("notice") or "").strip(),
+        error=(request.args.get("error") or "").strip(),
+        **page_context("Users"),
+    )
+
+
+@app.post("/users")
+def users_create() -> Response:
+    user_id = (request.form.get("user_id") or "").strip()
+    principal_id = (request.form.get("principal_id") or "").strip()
+    display_name = (request.form.get("display_name") or "").strip()
+    role = (request.form.get("role") or "").strip()
+    relationship = (request.form.get("relationship") or "").strip()
+    is_admin = _parse_bool(request.form.get("is_admin") or "false", default=False)
+    is_active = _parse_bool(request.form.get("is_active") or "true", default=True)
+    onboarded_at = (request.form.get("onboarded_at") or "").strip()
+    if not user_id or not principal_id:
+        return redirect(url_for("users", notice="", error="user_id and principal_id are required"))
+    payload = {
+        "user_id": user_id,
+        "principal_id": principal_id,
+        "display_name": display_name or None,
+        "role": role or None,
+        "relationship": relationship or None,
+        "is_admin": is_admin,
+        "is_active": is_active,
+        "onboarded_at": onboarded_at or None,
+    }
+    result = ALPHONSE.create_user(payload)
+    if not result.get("ok"):
+        return redirect(url_for("users", notice="", error=f"Failed to create user {user_id}"))
+    return redirect(url_for("users", notice=f"Created user {user_id}", error=""))
+
+
+@app.post("/users/<path:user_id>/update")
+def users_update(user_id: str) -> Response:
+    role = (request.form.get("role") or "").strip()
+    relationship = (request.form.get("relationship") or "").strip()
+    is_admin_raw = (request.form.get("is_admin") or "").strip()
+    updates: Dict[str, object] = {}
+    if role:
+        updates["role"] = role
+    if relationship:
+        updates["relationship"] = relationship
+    if is_admin_raw:
+        updates["is_admin"] = _parse_bool(is_admin_raw, default=False)
+    if not updates:
+        return redirect(url_for("users", notice="", error="No updates provided"))
+    result = ALPHONSE.update_user(user_id, updates)
+    if not result.get("ok"):
+        return redirect(url_for("users", notice="", error=f"Failed to update user {user_id}"))
+    return redirect(url_for("users", notice=f"Updated user {user_id}", error=""))
+
+
+@app.post("/users/<path:user_id>/delete")
+def users_delete(user_id: str) -> Response:
+    result = ALPHONSE.delete_user(user_id)
+    if not result.get("ok"):
+        return redirect(url_for("users", notice="", error=f"User {user_id} not found"))
+    return redirect(url_for("users", notice=f"Deleted user {user_id}", error=""))
 
 
 @app.get("/delegates")
