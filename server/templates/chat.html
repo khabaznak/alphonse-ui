@@ -9,7 +9,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="grid gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]">
+<div class="grid gap-5 xl:grid-cols-[18rem_minmax(0,1fr)] xl:h-[calc(100vh-13rem)]">
   <section class="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
     <div class="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Presence</div>
     <div id="presence-island" class="space-y-2" hx-get="/ui/presence" hx-trigger="load" hx-swap="innerHTML">
@@ -17,9 +17,9 @@
     </div>
   </section>
 
-  <section class="chat-panel rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+  <section class="chat-panel flex min-h-0 flex-col rounded-xl border border-slate-800 bg-slate-900/70 p-4">
     <div class="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Chat Timeline</div>
-    <div class="mb-4 min-h-[16rem] space-y-2 rounded-lg border border-slate-800 bg-slate-950/60 p-3" id="chat-timeline" hx-get="/chat/timeline" hx-trigger="load, every 2s" hx-swap="innerHTML">
+    <div class="mb-4 min-h-0 flex-1 space-y-2 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/60 p-3" id="chat-timeline" hx-get="/chat/timeline" hx-trigger="load, every 2s" hx-swap="innerHTML">
       <div class="text-sm text-slate-500">Loading timeline...</div>
     </div>
     <form class="composer space-y-3" hx-post="/chat/messages" hx-target="#chat-timeline" hx-swap="innerHTML">
@@ -38,4 +38,5 @@
 
 {% block scripts %}
 <script src="/static/js/presence_island.js" defer></script>
+<script src="/static/js/chat_composer_island.js" defer></script>
 {% endblock %}
