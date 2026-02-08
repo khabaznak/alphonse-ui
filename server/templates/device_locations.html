@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+  <div class="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Device Locations</div>
+
+  {% if notice %}
+  <div class="mb-3 rounded-lg border border-emerald-700/40 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-200">{{ notice }}</div>
+  {% endif %}
+  {% if error %}
+  <div class="mb-3 rounded-lg border border-rose-700/40 bg-rose-950/40 px-3 py-2 text-sm text-rose-200">{{ error }}</div>
+  {% endif %}
+
+  <form method="post" action="/device-locations" class="mb-4 space-y-2 rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+    <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Create Mapping</div>
+    <label class="block space-y-1">
+      <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">payload_json</span>
+      <textarea name="payload_json" rows="5" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 font-mono text-xs text-slate-100" placeholder='{"device_id":"iphone-1","location_id":"home"}'></textarea>
+    </label>
+    <button class="inline-flex items-center rounded-md border border-slate-600 bg-slate-800 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-slate-100 hover:bg-slate-700" type="submit">Create</button>
+  </form>
+
+  {% if device_locations %}
+  <div class="space-y-2">
+    {% for item in device_locations %}
+    <article class="rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+      <div class="text-sm text-slate-100">{{ item.get("device_id") or "unknown-device" }} -> {{ item.get("location_id") or "unknown-location" }}</div>
+      <pre class="mt-2 max-h-36 overflow-auto rounded border border-slate-800 bg-slate-900/60 p-2 text-xs text-slate-400">{{ item }}</pre>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="rounded-lg border border-slate-800 bg-slate-950/50 p-3 text-sm text-slate-500">No device-location mappings found.</div>
+  {% endif %}
+</section>
+{% endblock %}

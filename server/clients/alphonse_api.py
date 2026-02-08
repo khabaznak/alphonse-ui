@@ -300,6 +300,123 @@ class AlphonseClient:
             return {"ok": True, "status": "deleted", "data": response}
         return {"ok": True, "status": "deleted"}
 
+    def list_onboarding_profiles(self, limit: int = 100) -> Optional[List[Dict[str, object]]]:
+        response = self._request_json(
+            "GET",
+            f"/agent/onboarding/profiles?limit={limit}",
+            payload=None,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        return self._extract_items_list(response)
+
+    def get_onboarding_profile(self, principal_id: str) -> Optional[Dict[str, object]]:
+        encoded = quote(principal_id, safe="")
+        response = self._request_json(
+            "GET",
+            f"/agent/onboarding/profiles/{encoded}",
+            payload=None,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        return self._extract_item(response)
+
+    def create_onboarding_profile(self, payload: Dict[str, object]) -> Dict[str, object]:
+        response = self._request_json(
+            "POST",
+            "/agent/onboarding/profiles",
+            payload=payload,
+            timeout=8.0,
+            unwrap_data=False,
+        )
+        item = self._extract_item(response)
+        if item is None:
+            return {"ok": False, "status": "unavailable_or_invalid"}
+        return {"ok": True, "status": "created", "item": item}
+
+    def delete_onboarding_profile(self, principal_id: str) -> Dict[str, object]:
+        encoded = quote(principal_id, safe="")
+        response = self._request_json(
+            "DELETE",
+            f"/agent/onboarding/profiles/{encoded}",
+            payload=None,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        if response is None:
+            return {"ok": False, "status": "missing_or_unavailable"}
+        return {"ok": True, "status": "deleted"}
+
+    def list_locations(self, limit: int = 100) -> Optional[List[Dict[str, object]]]:
+        response = self._request_json(
+            "GET",
+            f"/agent/locations?limit={limit}",
+            payload=None,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        return self._extract_items_list(response)
+
+    def get_location(self, location_id: str) -> Optional[Dict[str, object]]:
+        encoded = quote(location_id, safe="")
+        response = self._request_json(
+            "GET",
+            f"/agent/locations/{encoded}",
+            payload=None,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        return self._extract_item(response)
+
+    def create_location(self, payload: Dict[str, object]) -> Dict[str, object]:
+        response = self._request_json(
+            "POST",
+            "/agent/locations",
+            payload=payload,
+            timeout=8.0,
+            unwrap_data=False,
+        )
+        item = self._extract_item(response)
+        if item is None:
+            return {"ok": False, "status": "unavailable_or_invalid"}
+        return {"ok": True, "status": "created", "item": item}
+
+    def delete_location(self, location_id: str) -> Dict[str, object]:
+        encoded = quote(location_id, safe="")
+        response = self._request_json(
+            "DELETE",
+            f"/agent/locations/{encoded}",
+            payload=None,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        if response is None:
+            return {"ok": False, "status": "missing_or_unavailable"}
+        return {"ok": True, "status": "deleted"}
+
+    def list_device_locations(self) -> Optional[List[Dict[str, object]]]:
+        response = self._request_json(
+            "GET",
+            "/agent/device-locations",
+            payload=None,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        return self._extract_items_list(response)
+
+    def create_device_location(self, payload: Dict[str, object]) -> Dict[str, object]:
+        response = self._request_json(
+            "POST",
+            "/agent/device-locations",
+            payload=payload,
+            timeout=8.0,
+            unwrap_data=False,
+        )
+        item = self._extract_item(response)
+        if item is None:
+            return {"ok": False, "status": "unavailable_or_invalid"}
+        return {"ok": True, "status": "created", "item": item}
+
     def _request_json(
         self,
         method: str,
@@ -362,6 +479,21 @@ class AlphonseClient:
             abilities = payload.get("abilities")
             if isinstance(abilities, list):
                 return [item for item in abilities if isinstance(item, dict)]
+        return None
+
+    def _extract_item(self, payload: Optional[Any]) -> Optional[Dict[str, object]]:
+        if isinstance(payload, dict):
+            item = payload.get("item")
+            if isinstance(item, dict):
+                return item
+            if payload.get("id") is not None:
+                return payload
+            if payload.get("principal_id") is not None:
+                return payload
+            if payload.get("location_id") is not None:
+                return payload
+            if payload.get("device_id") is not None:
+                return payload
         return None
 
     def _extract_delegate(self, payload: Optional[Any]) -> Optional[Dict[str, object]]:

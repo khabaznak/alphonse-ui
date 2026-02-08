@@ -170,6 +170,9 @@ def nav_sections() -> List[Dict[str, object]]:
             "items": [
                 {"label": "Integrations", "path": "/integrations"},
                 {"label": "Delegates", "path": "/delegates"},
+                {"label": "Onboarding Profiles", "path": "/onboarding/profiles"},
+                {"label": "Locations", "path": "/locations"},
+                {"label": "Device Locations", "path": "/device-locations"},
             ],
         },
         {
@@ -354,6 +357,116 @@ def admin() -> str:
 @app.get("/integrations")
 def integrations() -> str:
     return render_template("integrations.html", **page_context("Integrations"))
+
+
+@app.get("/onboarding/profiles")
+def onboarding_profiles() -> str:
+    limit = _query_int(request.args.get("limit"), default=100, min_value=1, max_value=1000)
+    profiles = ALPHONSE.list_onboarding_profiles(limit=limit) or []
+    selected_principal_id = (request.args.get("principal_id") or "").strip()
+    selected_profile = None
+    if selected_principal_id:
+        selected_profile = ALPHONSE.get_onboarding_profile(selected_principal_id)
+    return render_template(
+        "onboarding_profiles.html",
+        profiles=profiles,
+        selected_principal_id=selected_principal_id,
+        selected_profile=selected_profile,
+        selected_limit=limit,
+        notice=(request.args.get("notice") or "").strip(),
+        error=(request.args.get("error") or "").strip(),
+        **page_context("Onboarding Profiles"),
+    )
+
+
+@app.post("/onboarding/profiles")
+def onboarding_profiles_create() -> Response:
+    payload_raw = (request.form.get("payload_json") or "").strip()
+    payload = _parse_json_dict(payload_raw)
+    if payload is None:
+        return redirect(url_for("onboarding_profiles", notice="", error="payload_json must be a JSON object"))
+    principal_id = str(payload.get("principal_id") or "").strip()
+    if not principal_id:
+        return redirect(url_for("onboarding_profiles", notice="", error="payload_json.principal_id is required"))
+    result = ALPHONSE.create_onboarding_profile(payload)
+    if not result.get("ok"):
+        return redirect(url_for("onboarding_profiles", notice="", error=f"Failed to create profile {principal_id}"))
+    return redirect(url_for("onboarding_profiles", notice=f"Created profile {principal_id}", error=""))
+
+
+@app.post("/onboarding/profiles/<path:principal_id>/delete")
+def onboarding_profiles_delete(principal_id: str) -> Response:
+    result = ALPHONSE.delete_onboarding_profile(principal_id)
+    if not result.get("ok"):
+        return redirect(url_for("onboarding_profiles", notice="", error=f"Profile {principal_id} not found"))
+    return redirect(url_for("onboarding_profiles", notice=f"Deleted profile {principal_id}", error=""))
+
+
+@app.get("/locations")
+def locations() -> str:
+    limit = _query_int(request.args.get("limit"), default=100, min_value=1, max_value=1000)
+    items = ALPHONSE.list_locations(limit=limit) or []
+    selected_location_id = (request.args.get("location_id") or "").strip()
+    selected_location = None
+    if selected_location_id:
+        selected_location = ALPHONSE.get_location(selected_location_id)
+    return render_template(
+        "locations.html",
+        locations=items,
+        selected_location_id=selected_location_id,
+        selected_location=selected_location,
+        selected_limit=limit,
+        notice=(request.args.get("notice") or "").strip(),
+        error=(request.args.get("error") or "").strip(),
+        **page_context("Locations"),
+    )
+
+
+@app.post("/locations")
+def locations_create() -> Response:
+    payload_raw = (request.form.get("payload_json") or "").strip()
+    payload = _parse_json_dict(payload_raw)
+    if payload is None:
+        return redirect(url_for("locations", notice="", error="payload_json must be a JSON object"))
+    location_id = str(payload.get("location_id") or payload.get("id") or "").strip()
+    if not location_id:
+        return redirect(url_for("locations", notice="", error="payload_json.location_id is required"))
+    result = ALPHONSE.create_location(payload)
+    if not result.get("ok"):
+        return redirect(url_for("locations", notice="", error=f"Failed to create location {location_id}"))
+    return redirect(url_for("locations", notice=f"Created location {location_id}", error=""))
+
+
+@app.post("/locations/<path:location_id>/delete")
+def locations_delete(location_id: str) -> Response:
+    result = ALPHONSE.delete_location(location_id)
+    if not result.get("ok"):
+        return redirect(url_for("locations", notice="", error=f"Location {location_id} not found"))
+    return redirect(url_for("locations", notice=f"Deleted location {location_id}", error=""))
+
+
+@app.get("/device-locations")
+def device_locations() -> str:
+    items = ALPHONSE.list_device_locations() or []
+    return render_template(
+        "device_locations.html",
+        device_locations=items,
+        notice=(request.args.get("notice") or "").strip(),
+        error=(request.args.get("error") or "").strip(),
+        **page_context("Device Locations"),
+    )
+
+
+@app.post("/device-locations")
+def device_locations_create() -> Response:
+    payload_raw = (request.form.get("payload_json") or "").strip()
+    payload = _parse_json_dict(payload_raw)
+    if payload is None:
+        return redirect(url_for("device_locations", notice="", error="payload_json must be a JSON object"))
+    result = ALPHONSE.create_device_location(payload)
+    if not result.get("ok"):
+        return redirect(url_for("device_locations", notice="", error="Failed to create device-location mapping"))
+    return redirect(url_for("device_locations", notice="Created device-location mapping", error=""))
 
 
 @app.get("/delegates")

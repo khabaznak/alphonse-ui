@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+  <div class="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Onboarding Profiles</div>
+
+  {% if notice %}
+  <div class="mb-3 rounded-lg border border-emerald-700/40 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-200">{{ notice }}</div>
+  {% endif %}
+  {% if error %}
+  <div class="mb-3 rounded-lg border border-rose-700/40 bg-rose-950/40 px-3 py-2 text-sm text-rose-200">{{ error }}</div>
+  {% endif %}
+
+  <div class="mb-4 grid gap-3 xl:grid-cols-2">
+    <form method="get" action="/onboarding/profiles" class="space-y-2 rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+      <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Fetch Profile</div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">principal_id</span>
+          <input name="principal_id" type="text" value="{{ selected_principal_id }}" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">limit</span>
+          <input name="limit" type="number" min="1" max="1000" value="{{ selected_limit }}" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+      </div>
+      <button class="inline-flex items-center rounded-md border border-slate-600 bg-slate-800 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-slate-100 hover:bg-slate-700" type="submit">Refresh</button>
+    </form>
+
+    <form method="post" action="/onboarding/profiles" class="space-y-2 rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+      <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Create Profile</div>
+      <label class="block space-y-1">
+        <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">payload_json</span>
+        <textarea name="payload_json" rows="5" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 font-mono text-xs text-slate-100" placeholder='{"principal_id":"user-1","profile":{"name":"Alex"}}'></textarea>
+      </label>
+      <button class="inline-flex items-center rounded-md border border-slate-600 bg-slate-800 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-slate-100 hover:bg-slate-700" type="submit">Create</button>
+    </form>
+  </div>
+
+  {% if selected_profile %}
+  <div class="mb-4 rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+    <div class="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Selected Profile</div>
+    <pre class="max-h-48 overflow-auto rounded border border-slate-800 bg-slate-900/60 p-2 text-xs text-slate-300">{{ selected_profile }}</pre>
+  </div>
+  {% endif %}
+
+  {% if profiles %}
+  <div class="space-y-2">
+    {% for item in profiles %}
+    {% set pid = item.get("principal_id") or item.get("id") %}
+    <article class="rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="text-sm text-slate-100">{{ pid or "unknown-principal" }}</div>
+        {% if pid %}
+        <form method="post" action="/onboarding/profiles/{{ pid|urlencode }}/delete">
+          <button class="inline-flex items-center rounded-md border border-rose-700/70 bg-rose-900/60 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-rose-100 hover:bg-rose-800/70" type="submit">Delete</button>
+        </form>
+        {% endif %}
+      </div>
+      <pre class="mt-2 max-h-36 overflow-auto rounded border border-slate-800 bg-slate-900/60 p-2 text-xs text-slate-400">{{ item }}</pre>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="rounded-lg border border-slate-800 bg-slate-950/50 p-3 text-sm text-slate-500">No onboarding profiles found.</div>
+  {% endif %}
+</section>
+{% endblock %}
