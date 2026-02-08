@@ -160,7 +160,8 @@ def nav_sections() -> List[Dict[str, object]]:
         {
             "title": "Skills",
             "items": [
-                {"label": "Skill Catalog", "path": "/chat"},
+                {"label": "Gap Proposals", "path": "/skills/gap-proposals"},
+                {"label": "Gap Tasks", "path": "/skills/gap-tasks"},
             ],
         },
         {
@@ -259,6 +260,16 @@ def page_context(title: str, show_context: bool = False) -> Dict[str, object]:
     }
 
 
+def _query_int(raw: Optional[str], *, default: int, min_value: int, max_value: int) -> int:
+    if raw is None or not raw.strip():
+        return default
+    try:
+        parsed = int(raw)
+    except ValueError:
+        return default
+    return max(min_value, min(max_value, parsed))
+
+
 def _parse_delegate(raw: Dict[str, object]) -> Optional[Delegate]:
     delegate_id = str(raw.get("id") or "").strip()
     name = str(raw.get("name") or "").strip()
@@ -323,6 +334,144 @@ def integrations() -> str:
 def delegates_list() -> str:
     delegates = list(get_delegate_registry().values())
     return render_template("delegates.html", delegates=delegates, **page_context("Delegates"))
+
+
+@app.get("/skills/gap-proposals")
+def gap_proposals() -> str:
+    status = (request.args.get("status") or "pending").strip() or "pending"
+    if status not in {"pending", "approved", "rejected", "dispatched", "all"}:
+        status = "pending"
+    limit = _query_int(request.args.get("limit"), default=50, min_value=1, max_value=500)
+    backend_status = None if status == "all" else status
+    proposals = ALPHONSE.list_gap_proposals(status=backend_status, limit=limit) or []
+    return render_template(
+        "gap_proposals.html",
+        proposals=proposals,
+        selected_status=status,
+        selected_limit=limit,
+        notice=(request.args.get("notice") or "").strip(),
+        error=(request.args.get("error") or "").strip(),
+        **page_context("Gap Proposals"),
+    )
+
+
+@app.post("/skills/gap-proposals/coalesce")
+def gap_proposals_coalesce() -> Response:
+    limit = _query_int(request.form.get("limit"), default=300, min_value=1, max_value=5000)
+    min_cluster_size = _query_int(request.form.get("min_cluster_size"), default=2, min_value=1, max_value=50)
+    result = ALPHONSE.coalesce_gap_proposals(limit=limit, min_cluster_size=min_cluster_size)
+    if not result.get("ok"):
+        return redirect(url_for("gap_proposals", status="pending", notice="", error="Coalesce failed"))
+    created = int(result.get("created_count") or 0)
+    return redirect(
+        url_for(
+            "gap_proposals",
+            status="pending",
+            notice=f"Coalesced proposals. Created {created}.",
+            error="",
+        )
+    )
+
+
+@app.post("/skills/gap-proposals/<proposal_id>/review")
+def gap_proposal_review(proposal_id: str) -> Response:
+    status = (request.form.get("status") or "").strip().lower()
+    if status not in {"approved", "rejected", "pending", "dispatched"}:
+        return redirect(url_for("gap_proposals", status="pending", notice="", error="Invalid proposal status"))
+    reviewer = (request.form.get("reviewer") or "").strip() or None
+    notes = (request.form.get("notes") or "").strip() or None
+    result = ALPHONSE.update_gap_proposal(
+        proposal_id,
+        status=status,
+        reviewer=reviewer,
+        notes=notes,
+    )
+    if not result.get("ok"):
+        return redirect(
+            url_for(
+                "gap_proposals",
+                status="pending",
+                notice="",
+                error=f"Failed to update proposal {proposal_id}.",
+            )
+        )
+    return redirect(
+        url_for(
+            "gap_proposals",
+            status=status if status in {"pending", "approved", "rejected", "dispatched"} else "pending",
+            notice=f"Proposal {proposal_id} set to {status}.",
+            error="",
+        )
+    )
+
+
+@app.post("/skills/gap-proposals/<proposal_id>/dispatch")
+def gap_proposal_dispatch(proposal_id: str) -> Response:
+    task_type = (request.form.get("task_type") or "").strip() or None
+    actor = (request.form.get("actor") or "").strip() or None
+    result = ALPHONSE.dispatch_gap_proposal(proposal_id, task_type=task_type, actor=actor)
+    if not result.get("ok"):
+        return redirect(
+            url_for(
+                "gap_proposals",
+                status="approved",
+                notice="",
+                error=f"Failed to dispatch proposal {proposal_id}.",
+            )
+        )
+    task_id = str(result.get("task_id") or "")
+    return redirect(
+        url_for(
+            "gap_tasks",
+            status="open",
+            notice=f"Dispatched proposal {proposal_id} to task {task_id}.",
+            error="",
+        )
+    )
+
+
+@app.get("/skills/gap-tasks")
+def gap_tasks() -> str:
+    status = (request.args.get("status") or "open").strip() or "open"
+    if status not in {"open", "done", "all"}:
+        status = "open"
+    limit = _query_int(request.args.get("limit"), default=50, min_value=1, max_value=500)
+    backend_status = None if status == "all" else status
+    tasks = ALPHONSE.list_gap_tasks(status=backend_status, limit=limit) or []
+    return render_template(
+        "gap_tasks.html",
+        tasks=tasks,
+        selected_status=status,
+        selected_limit=limit,
+        notice=(request.args.get("notice") or "").strip(),
+        error=(request.args.get("error") or "").strip(),
+        **page_context("Gap Tasks"),
+    )
+
+
+@app.post("/skills/gap-tasks/<task_id>/status")
+def gap_task_update_status(task_id: str) -> Response:
+    status = (request.form.get("status") or "").strip().lower()
+    if status not in {"open", "done"}:
+        return redirect(url_for("gap_tasks", status="open", notice="", error="Invalid task status"))
+    result = ALPHONSE.update_gap_task(task_id, status=status)
+    if not result.get("ok"):
+        return redirect(
+            url_for(
+                "gap_tasks",
+                status="open",
+                notice="",
+                error=f"Failed to update task {task_id}.",
+            )
+        )
+    return redirect(
+        url_for(
+            "gap_tasks",
+            status=status,
+            notice=f"Task {task_id} set to {status}.",
+            error="",
+        )
+    )
 
 
 @app.get("/delegates/<delegate_id>")

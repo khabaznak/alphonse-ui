@@ -105,6 +105,116 @@ class AlphonseClient:
             return {"ok": True, "status": "assigned", "data": response}
         return {"ok": False, "status": "unavailable"}
 
+    def coalesce_gap_proposals(self, limit: int = 300, min_cluster_size: int = 2) -> Dict[str, object]:
+        payload = {"limit": limit, "min_cluster_size": min_cluster_size}
+        response = self._request_json(
+            "POST",
+            "/agent/gap-proposals/coalesce",
+            payload=payload,
+            timeout=10.0,
+            unwrap_data=False,
+        )
+        if not isinstance(response, dict):
+            return {"ok": False, "status": "unavailable"}
+        return {
+            "ok": True,
+            "status": "accepted",
+            "created_count": int(response.get("created_count") or 0),
+            "proposal_ids": response.get("proposal_ids") if isinstance(response.get("proposal_ids"), list) else [],
+            "data": response,
+        }
+
+    def list_gap_proposals(self, status: Optional[str], limit: int = 50) -> Optional[List[Dict[str, object]]]:
+        query_status = status.strip() if isinstance(status, str) and status.strip() else None
+        path = f"/agent/gap-proposals?limit={limit}"
+        if query_status:
+            path = f"{path}&status={query_status}"
+        response = self._request_json("GET", path, payload=None, timeout=5.0, unwrap_data=False)
+        if isinstance(response, dict):
+            items = response.get("items")
+            if isinstance(items, list):
+                return [item for item in items if isinstance(item, dict)]
+        return None
+
+    def update_gap_proposal(
+        self,
+        proposal_id: str,
+        status: str,
+        reviewer: Optional[str] = None,
+        notes: Optional[str] = None,
+    ) -> Dict[str, object]:
+        payload: Dict[str, object] = {"status": status}
+        if reviewer and reviewer.strip():
+            payload["reviewer"] = reviewer.strip()
+        if notes and notes.strip():
+            payload["notes"] = notes.strip()
+        response = self._request_json(
+            "PATCH",
+            f"/agent/gap-proposals/{proposal_id}",
+            payload=payload,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        if not isinstance(response, dict):
+            return {"ok": False, "status": "unavailable"}
+        item = response.get("item")
+        if not isinstance(item, dict):
+            return {"ok": False, "status": "invalid"}
+        return {"ok": True, "status": "updated", "item": item}
+
+    def dispatch_gap_proposal(
+        self,
+        proposal_id: str,
+        task_type: Optional[str] = None,
+        actor: Optional[str] = None,
+    ) -> Dict[str, object]:
+        payload: Dict[str, object] = {}
+        if task_type and task_type.strip():
+            payload["task_type"] = task_type.strip()
+        if actor and actor.strip():
+            payload["actor"] = actor.strip()
+        response = self._request_json(
+            "POST",
+            f"/agent/gap-proposals/{proposal_id}/dispatch",
+            payload=payload,
+            timeout=8.0,
+            unwrap_data=False,
+        )
+        if not isinstance(response, dict):
+            return {"ok": False, "status": "unavailable"}
+        task_id = response.get("task_id")
+        task = response.get("task")
+        if not isinstance(task_id, str):
+            return {"ok": False, "status": "invalid"}
+        return {"ok": True, "status": "dispatched", "task_id": task_id, "task": task, "data": response}
+
+    def list_gap_tasks(self, status: Optional[str], limit: int = 50) -> Optional[List[Dict[str, object]]]:
+        query_status = status.strip() if isinstance(status, str) and status.strip() else None
+        path = f"/agent/gap-tasks?limit={limit}"
+        if query_status:
+            path = f"{path}&status={query_status}"
+        response = self._request_json("GET", path, payload=None, timeout=5.0, unwrap_data=False)
+        if isinstance(response, dict):
+            items = response.get("items")
+            if isinstance(items, list):
+                return [item for item in items if isinstance(item, dict)]
+        return None
+
+    def update_gap_task(self, task_id: str, status: str) -> Dict[str, object]:
+        response = self._request_json(
+            "PATCH",
+            f"/agent/gap-tasks/{task_id}",
+            payload={"status": status},
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        if not isinstance(response, dict):
+            return {"ok": False, "status": "unavailable"}
+        item = response.get("item")
+        if not isinstance(item, dict):
+            return {"ok": False, "status": "invalid"}
+        return {"ok": True, "status": "updated", "item": item}
+
     def _request_json(
         self,
         method: str,

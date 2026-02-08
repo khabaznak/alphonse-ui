@@ -15,6 +15,8 @@ Alphonse UI is an interface organ: an extremity (explicit commands), a sense (si
 This repo provides the initial scaffolding and HTMX skeleton:
 
 - Main Chat screen as the central plaza.
+- Gap Proposals review screen (coalesce, approve/reject, dispatch).
+- Gap Tasks tracking screen (open/done workflow for skill creation tasks).
 - Left internal navigation with collapsible sections.
 - Right contextual panel for external world (hidden by default).
 - HTMX endpoints for chat timeline and presence placeholder.
@@ -52,6 +54,8 @@ server/
     chat.html             Main plaza
     admin.html            Placeholder
     integrations.html     Placeholder
+    gap_proposals.html    Proposal review and dispatch surface
+    gap_tasks.html        Skill-creation task tracking surface
     partials/
       chat_timeline.html  Timeline HTMX fragment
       chat_message.html   Message fragment

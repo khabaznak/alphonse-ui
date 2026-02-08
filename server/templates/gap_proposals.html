@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+  <div class="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Gap Proposals</div>
+
+  {% if notice %}
+  <div class="mb-3 rounded-lg border border-emerald-700/40 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-200">{{ notice }}</div>
+  {% endif %}
+  {% if error %}
+  <div class="mb-3 rounded-lg border border-rose-700/40 bg-rose-950/40 px-3 py-2 text-sm text-rose-200">{{ error }}</div>
+  {% endif %}
+
+  <div class="mb-4 grid gap-3 lg:grid-cols-2">
+    <form method="get" action="/skills/gap-proposals" class="space-y-2 rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+      <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Review Queue</div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Status</span>
+          <select name="status" class="w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100">
+            {% for option in ["pending", "approved", "rejected", "dispatched", "all"] %}
+            <option value="{{ option }}" {% if selected_status == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Limit</span>
+          <input name="limit" type="number" min="1" max="500" value="{{ selected_limit }}" class="w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100" />
+        </label>
+      </div>
+      <button class="inline-flex items-center rounded-md border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-100 hover:bg-slate-700" type="submit">Refresh</button>
+    </form>
+
+    <form method="post" action="/skills/gap-proposals/coalesce" class="space-y-2 rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+      <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Coalesce Open Gaps</div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Limit</span>
+          <input name="limit" type="number" min="1" max="5000" value="300" class="w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Min Cluster</span>
+          <input name="min_cluster_size" type="number" min="1" max="50" value="2" class="w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100" />
+        </label>
+      </div>
+      <button class="inline-flex items-center rounded-md border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-100 hover:bg-slate-700" type="submit">Coalesce</button>
+    </form>
+  </div>
+
+  {% if proposals %}
+  <div class="space-y-3">
+    {% for proposal in proposals %}
+    <article class="rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div class="text-sm font-medium text-slate-100">{{ proposal.get("proposed_intent_name") or proposal.get("proposed_category") or "Unlabeled proposal" }}</div>
+          <div class="mt-1 text-xs text-slate-400">
+            ID {{ proposal.get("id") }} · gap {{ proposal.get("gap_id") }} · status {{ proposal.get("status") }} · next {{ proposal.get("proposed_next_action") }}
+          </div>
+        </div>
+        <div class="text-xs text-slate-500">{{ proposal.get("created_at") or "" }}</div>
+      </div>
+
+      {% if proposal.get("proposed_clarifying_question") %}
+      <div class="mt-2 text-sm text-slate-300">{{ proposal.get("proposed_clarifying_question") }}</div>
+      {% endif %}
+      {% if proposal.get("notes") %}
+      <div class="mt-2 rounded border border-slate-800 bg-slate-900/60 px-2 py-1 text-xs text-slate-400">{{ proposal.get("notes") }}</div>
+      {% endif %}
+
+      <div class="mt-3 grid gap-3 lg:grid-cols-2">
+        <form method="post" action="/skills/gap-proposals/{{ proposal.get('id') }}/review" class="space-y-2 rounded border border-slate-800 bg-slate-900/40 p-2">
+          <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Approve / Reject</div>
+          <div class="grid gap-2 sm:grid-cols-2">
+            <label class="block space-y-1">
+              <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Status</span>
+              <select name="status" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100">
+                {% for option in ["approved", "rejected", "pending"] %}
+                <option value="{{ option }}" {% if proposal.get("status") == option %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="block space-y-1">
+              <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Reviewer</span>
+              <input name="reviewer" type="text" placeholder="UI operator" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+            </label>
+          </div>
+          <label class="block space-y-1">
+            <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Notes</span>
+            <input name="notes" type="text" placeholder="Review notes" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+          </label>
+          <button class="inline-flex items-center rounded-md border border-slate-600 bg-slate-800 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-slate-100 hover:bg-slate-700" type="submit">Save Review</button>
+        </form>
+
+        <form method="post" action="/skills/gap-proposals/{{ proposal.get('id') }}/dispatch" class="space-y-2 rounded border border-slate-800 bg-slate-900/40 p-2">
+          <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Dispatch Skill Creation</div>
+          <div class="grid gap-2 sm:grid-cols-2">
+            <label class="block space-y-1">
+              <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Task Type</span>
+              <select name="task_type" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100">
+                {% for option in ["plan", "investigate", "fix_now"] %}
+                <option value="{{ option }}" {% if proposal.get("proposed_next_action") == option %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="block space-y-1">
+              <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Actor</span>
+              <input name="actor" type="text" placeholder="skill-creator" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+            </label>
+          </div>
+          <button class="inline-flex items-center rounded-md border border-slate-600 bg-slate-800 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-slate-100 hover:bg-slate-700" type="submit">Dispatch</button>
+        </form>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="rounded-lg border border-slate-800 bg-slate-950/50 p-3 text-sm text-slate-500">No proposals found for current filter.</div>
+  {% endif %}
+</section>
+{% endblock %}
