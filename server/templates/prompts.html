@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+  <div class="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Prompt Library</div>
+
+  {% if notice %}
+  <div class="mb-3 rounded-lg border border-emerald-700/40 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-200">{{ notice }}</div>
+  {% endif %}
+  {% if error %}
+  <div class="mb-3 rounded-lg border border-rose-700/40 bg-rose-950/40 px-3 py-2 text-sm text-rose-200">{{ error }}</div>
+  {% endif %}
+
+  <div class="mb-4 grid gap-3 xl:grid-cols-2">
+    <form method="get" action="/prompts" class="space-y-2 rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+      <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Fetch Prompts</div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">template_id</span>
+          <input name="template_id" type="text" value="{{ selected_template_id }}" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">key</span>
+          <input name="key" type="text" value="{{ selected_key }}" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+      </div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">purpose</span>
+          <input name="purpose" type="text" value="{{ selected_purpose }}" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">enabled_only</span>
+          <select name="enabled_only" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100">
+            <option value="" {% if not selected_enabled_only %}selected{% endif %}>any</option>
+            <option value="true" {% if selected_enabled_only == "true" %}selected{% endif %}>true</option>
+            <option value="false" {% if selected_enabled_only == "false" %}selected{% endif %}>false</option>
+          </select>
+        </label>
+      </div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">limit</span>
+          <input name="limit" type="number" min="1" max="1000" value="{{ selected_limit }}" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+      </div>
+      <button class="inline-flex items-center rounded-md border border-slate-600 bg-slate-800 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-slate-100 hover:bg-slate-700" type="submit">Refresh</button>
+    </form>
+
+    <form method="post" action="/prompts" class="space-y-2 rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+      <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Create Prompt</div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">key *</span>
+          <input name="key" type="text" placeholder="message_map.system.v1" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">purpose</span>
+          <input name="purpose" type="text" value="routing" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+      </div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">locale</span>
+          <input name="locale" type="text" value="any" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">address_style</span>
+          <input name="address_style" type="text" value="any" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+      </div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">tone</span>
+          <input name="tone" type="text" value="any" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">channel</span>
+          <input name="channel" type="text" value="any" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+      </div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">variant</span>
+          <input name="variant" type="text" value="default" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">policy_tier</span>
+          <input name="policy_tier" type="text" value="safe" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+      </div>
+      <label class="block space-y-1">
+        <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">template *</span>
+        <textarea name="template" rows="5" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 font-mono text-xs text-slate-100" placeholder="You are a message dissection engine..."></textarea>
+      </label>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">enabled</span>
+          <select name="enabled" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100">
+            <option value="true" selected>true</option>
+            <option value="false">false</option>
+          </select>
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">priority</span>
+          <input name="priority" type="number" value="0" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+      </div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">changed_by</span>
+          <input name="changed_by" type="text" value="admin" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">reason</span>
+          <input name="reason" type="text" value="initial_seed" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+      </div>
+      <button class="inline-flex items-center rounded-md border border-slate-600 bg-slate-800 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-slate-100 hover:bg-slate-700" type="submit">Create</button>
+    </form>
+  </div>
+
+  {% if selected_template %}
+  <div class="mb-4 rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+    <div class="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Selected Prompt</div>
+    <pre class="max-h-48 overflow-auto rounded border border-slate-800 bg-slate-900/60 p-2 text-xs text-slate-300">{{ selected_template }}</pre>
+  </div>
+  {% endif %}
+
+  {% if prompts %}
+  <div class="space-y-2">
+    {% for item in prompts %}
+    {% set tid = item.get("template_id") or item.get("id") %}
+    <article class="rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+      <div class="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <div class="text-sm text-slate-100">{{ item.get("key") or "unknown-key" }}</div>
+          <div class="mt-1 text-xs text-slate-400">
+            purpose: {{ item.get("purpose") or "n/a" }} · enabled {{ item.get("enabled") }} · priority {{ item.get("priority") }}
+          </div>
+          <div class="mt-1 text-xs text-slate-500">
+            locale {{ item.get("locale") or "any" }} · channel {{ item.get("channel") or "any" }} · tone {{ item.get("tone") or "any" }}
+          </div>
+          <div class="mt-1 text-xs text-slate-500">
+            variant {{ item.get("variant") or "default" }} · policy {{ item.get("policy_tier") or "safe" }}
+          </div>
+        </div>
+        {% if tid %}
+        <form method="post" action="/prompts/{{ tid|urlencode }}/delete">
+          <button class="inline-flex items-center rounded-md border border-rose-700/70 bg-rose-900/60 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-rose-100 hover:bg-rose-800/70" type="submit">Delete</button>
+        </form>
+        {% endif %}
+      </div>
+      {% if tid %}
+      <form method="post" action="/prompts/{{ tid|urlencode }}/update" class="mt-3 grid gap-2 sm:grid-cols-4">
+        <label class="block space-y-1 sm:col-span-4">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">template</span>
+          <textarea name="template" rows="4" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 font-mono text-xs text-slate-100">{{ item.get("template") or "" }}</textarea>
+        </label>
+        <label class="block space-y-1 sm:col-span-2">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">purpose</span>
+          <input name="purpose" type="text" value="{{ item.get('purpose') or '' }}" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">priority</span>
+          <input name="priority" type="number" value="{{ item.get('priority') if item.get('priority') is not none else '' }}" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">enabled</span>
+          <select name="enabled" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100">
+            <option value="">no change</option>
+            <option value="true">true</option>
+            <option value="false">false</option>
+          </select>
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">changed_by</span>
+          <input name="changed_by" type="text" value="admin" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1 sm:col-span-2">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">reason</span>
+          <input name="reason" type="text" value="tuning" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <div class="flex items-end">
+          <button class="inline-flex items-center rounded-md border border-slate-600 bg-slate-800 px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-100 hover:bg-slate-700" type="submit">Update</button>
+        </div>
+      </form>
+      <form method="post" action="/prompts/{{ tid|urlencode }}/rollback" class="mt-3 grid gap-2 sm:grid-cols-4 rounded-lg border border-slate-800 bg-slate-900/40 p-2">
+        <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 sm:col-span-4">Rollback</div>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">version *</span>
+          <input name="version" type="number" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">changed_by</span>
+          <input name="changed_by" type="text" value="admin" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1 sm:col-span-2">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">reason</span>
+          <input name="reason" type="text" value="revert" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <div class="flex items-end">
+          <button class="inline-flex items-center rounded-md border border-amber-700/60 bg-amber-900/40 px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-100 hover:bg-amber-800/60" type="submit">Rollback</button>
+        </div>
+      </form>
+      {% endif %}
+      <pre class="mt-2 max-h-36 overflow-auto rounded border border-slate-800 bg-slate-900/60 p-2 text-xs text-slate-500">{{ item }}</pre>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="rounded-lg border border-slate-800 bg-slate-950/50 p-3 text-sm text-slate-500">No prompt templates found.</div>
+  {% endif %}
+</section>
+{% endblock %}

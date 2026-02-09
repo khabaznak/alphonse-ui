@@ -205,7 +205,7 @@ def nav_sections() -> List[Dict[str, object]]:
         {
             "title": "Prompts",
             "items": [
-                {"label": "Prompt Library", "path": "/chat"},
+                {"label": "Prompt Library", "path": "/prompts"},
             ],
         },
     ]
@@ -232,8 +232,12 @@ def external_sections() -> List[Dict[str, object]]:
             )
         ).strip()
         role = str(user.get("primary_role") or user.get("role") or "").strip()
-        if role:
-            label = f"{label} · {role}"
+        relationship = str(user.get("relationship") or "").strip()
+        meta_bits = [value for value in (role, relationship) if value]
+        if meta_bits:
+            label = f"{label} · {' / '.join(meta_bits)}"
+        if user.get("is_admin") is True:
+            label = f"{label} · admin"
         user_items.append(label or "unknown-user")
     return [
         {
@@ -315,6 +319,17 @@ def _parse_json_list(raw: str) -> Optional[List[object]]:
     if not isinstance(parsed, list):
         return None
     return parsed
+
+
+def _parse_int(raw: str) -> Optional[int]:
+    if raw is None:
+        return None
+    if not raw.strip():
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
 
 
 def _parse_float(raw: str) -> Optional[float]:
@@ -758,6 +773,137 @@ def telegram_invite_status(chat_id: str) -> Response:
     if not result.get("ok"):
         return redirect(url_for("telegram_invites", notice="", error=f"Failed to update invite {chat_id}"))
     return redirect(url_for("telegram_invites", notice=f"Updated invite {chat_id}", error=""))
+
+
+@app.get("/prompts")
+def prompts() -> str:
+    key = (request.args.get("key") or "").strip()
+    purpose = (request.args.get("purpose") or "").strip()
+    enabled_only_raw = (request.args.get("enabled_only") or "").strip()
+    enabled_only = _parse_bool(enabled_only_raw, default=False) if enabled_only_raw else None
+    limit_raw = (request.args.get("limit") or "").strip()
+    limit = _parse_int(limit_raw) if limit_raw else None
+    items = ALPHONSE.list_prompts(
+        key=key or None,
+        enabled_only=enabled_only,
+        purpose=purpose or None,
+        limit=limit,
+    ) or []
+    selected_template_id = (request.args.get("template_id") or "").strip()
+    selected_template = None
+    if selected_template_id:
+        selected_template = ALPHONSE.get_prompt(selected_template_id)
+    return render_template(
+        "prompts.html",
+        prompts=items,
+        selected_template_id=selected_template_id,
+        selected_template=selected_template,
+        selected_key=key,
+        selected_purpose=purpose,
+        selected_enabled_only=enabled_only_raw,
+        selected_limit=limit_raw,
+        notice=(request.args.get("notice") or "").strip(),
+        error=(request.args.get("error") or "").strip(),
+        **page_context("Prompt Library"),
+    )
+
+
+@app.post("/prompts")
+def prompts_create() -> Response:
+    key = (request.form.get("key") or "").strip()
+    locale = (request.form.get("locale") or "").strip()
+    address_style = (request.form.get("address_style") or "").strip()
+    tone = (request.form.get("tone") or "").strip()
+    channel = (request.form.get("channel") or "").strip()
+    variant = (request.form.get("variant") or "").strip()
+    policy_tier = (request.form.get("policy_tier") or "").strip()
+    purpose = (request.form.get("purpose") or "").strip()
+    template = (request.form.get("template") or "").strip()
+    enabled = _parse_bool(request.form.get("enabled") or "true", default=True)
+    priority_raw = (request.form.get("priority") or "").strip()
+    priority = _parse_int(priority_raw) if priority_raw else 0
+    changed_by = (request.form.get("changed_by") or "").strip()
+    reason = (request.form.get("reason") or "").strip()
+    if not key or not template:
+        return redirect(url_for("prompts", notice="", error="key and template are required"))
+    payload = {
+        "key": key,
+        "locale": locale or "any",
+        "address_style": address_style or "any",
+        "tone": tone or "any",
+        "channel": channel or "any",
+        "variant": variant or "default",
+        "policy_tier": policy_tier or "safe",
+        "purpose": purpose or "routing",
+        "template": template,
+        "enabled": enabled,
+        "priority": priority,
+        "changed_by": changed_by or "admin",
+        "reason": reason or "manual_update",
+    }
+    result = ALPHONSE.create_prompt(payload)
+    if not result.get("ok"):
+        return redirect(url_for("prompts", notice="", error=f"Failed to create prompt {key}"))
+    return redirect(url_for("prompts", notice=f"Created prompt {key}", error=""))
+
+
+@app.post("/prompts/<path:template_id>/update")
+def prompts_update(template_id: str) -> Response:
+    template = (request.form.get("template") or "").strip()
+    enabled_raw = (request.form.get("enabled") or "").strip()
+    priority_raw = (request.form.get("priority") or "").strip()
+    purpose = (request.form.get("purpose") or "").strip()
+    changed_by = (request.form.get("changed_by") or "").strip()
+    reason = (request.form.get("reason") or "").strip()
+    updates: Dict[str, object] = {}
+    if template:
+        updates["template"] = template
+    if enabled_raw:
+        updates["enabled"] = _parse_bool(enabled_raw, default=False)
+    if priority_raw:
+        parsed_priority = _parse_int(priority_raw)
+        if parsed_priority is None:
+            return redirect(url_for("prompts", notice="", error=f"Invalid priority for {template_id}"))
+        updates["priority"] = parsed_priority
+    if purpose:
+        updates["purpose"] = purpose
+    if changed_by:
+        updates["changed_by"] = changed_by
+    if reason:
+        updates["reason"] = reason
+    if not updates:
+        return redirect(url_for("prompts", notice="", error=f"No updates provided for {template_id}"))
+    result = ALPHONSE.update_prompt(template_id, updates)
+    if not result.get("ok"):
+        return redirect(url_for("prompts", notice="", error=f"Failed to update {template_id}"))
+    return redirect(url_for("prompts", notice=f"Updated prompt {template_id}", error=""))
+
+
+@app.post("/prompts/<path:template_id>/rollback")
+def prompts_rollback(template_id: str) -> Response:
+    version_raw = (request.form.get("version") or "").strip()
+    changed_by = (request.form.get("changed_by") or "").strip()
+    reason = (request.form.get("reason") or "").strip()
+    version = _parse_int(version_raw) if version_raw else None
+    if version is None:
+        return redirect(url_for("prompts", notice="", error=f"version is required for {template_id}"))
+    payload = {
+        "version": version,
+        "changed_by": changed_by or "admin",
+        "reason": reason or "rollback",
+    }
+    result = ALPHONSE.rollback_prompt(template_id, payload)
+    if not result.get("ok"):
+        return redirect(url_for("prompts", notice="", error=f"Failed to rollback {template_id}"))
+    return redirect(url_for("prompts", notice=f"Rolled back prompt {template_id}", error=""))
+
+
+@app.post("/prompts/<path:template_id>/delete")
+def prompts_delete(template_id: str) -> Response:
+    result = ALPHONSE.delete_prompt(template_id)
+    if not result.get("ok"):
+        return redirect(url_for("prompts", notice="", error=f"Prompt {template_id} not found"))
+    return redirect(url_for("prompts", notice=f"Deleted prompt {template_id}", error=""))
 
 
 @app.get("/delegates")

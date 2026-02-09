@@ -617,6 +617,103 @@ class AlphonseClient:
             return {"ok": False, "status": "missing_or_unavailable"}
         return {"ok": True, "status": "deleted"}
 
+    def list_prompts(
+        self,
+        key: Optional[str] = None,
+        enabled_only: Optional[bool] = None,
+        purpose: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> Optional[List[Dict[str, object]]]:
+        params: Dict[str, object] = {}
+        if key and key.strip():
+            params["key"] = key.strip()
+        if purpose and purpose.strip():
+            params["purpose"] = purpose.strip()
+        if enabled_only is not None:
+            params["enabled_only"] = "true" if enabled_only else "false"
+        if limit is not None:
+            params["limit"] = max(1, min(int(limit), 1000))
+        query = urlencode(params) if params else ""
+        response = self._request_json(
+            "GET",
+            f"/agent/prompts{('?' + query) if query else ''}",
+            payload=None,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        return self._extract_items_list(response)
+
+    def get_prompt(self, template_id: str) -> Optional[Dict[str, object]]:
+        encoded = quote(template_id, safe="")
+        response = self._request_json(
+            "GET",
+            f"/agent/prompts/{encoded}",
+            payload=None,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        return self._extract_item(response)
+
+    def create_prompt(self, payload: Dict[str, object]) -> Dict[str, object]:
+        response = self._request_json(
+            "POST",
+            "/agent/prompts",
+            payload=payload,
+            timeout=8.0,
+            unwrap_data=False,
+        )
+        item = self._extract_item(response)
+        if item is None:
+            return {"ok": False, "status": "unavailable_or_invalid"}
+        return {"ok": True, "status": "created", "item": item}
+
+    def update_prompt(self, template_id: str, updates: Dict[str, object]) -> Dict[str, object]:
+        encoded = quote(template_id, safe="")
+        response = self._request_json(
+            "PATCH",
+            f"/agent/prompts/{encoded}",
+            payload=updates,
+            timeout=8.0,
+            unwrap_data=False,
+        )
+        if not isinstance(response, dict):
+            return {"ok": False, "status": "unavailable"}
+        item = response.get("item")
+        if isinstance(item, dict):
+            return {"ok": True, "status": "updated", "item": item}
+        if "template_id" in response and isinstance(response.get("template_id"), str):
+            return {"ok": True, "status": "updated", "item": response}
+        return {"ok": False, "status": "invalid"}
+
+    def delete_prompt(self, template_id: str) -> Dict[str, object]:
+        encoded = quote(template_id, safe="")
+        response = self._request_json(
+            "DELETE",
+            f"/agent/prompts/{encoded}",
+            payload=None,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        if response is None:
+            return {"ok": False, "status": "missing_or_unavailable"}
+        return {"ok": True, "status": "deleted"}
+
+    def rollback_prompt(self, template_id: str, payload: Dict[str, object]) -> Dict[str, object]:
+        encoded = quote(template_id, safe="")
+        response = self._request_json(
+            "POST",
+            f"/agent/prompts/{encoded}/rollback",
+            payload=payload,
+            timeout=8.0,
+            unwrap_data=False,
+        )
+        if not isinstance(response, dict):
+            return {"ok": False, "status": "unavailable"}
+        item = response.get("item")
+        if isinstance(item, dict):
+            return {"ok": True, "status": "rolled_back", "item": item}
+        return {"ok": True, "status": "rolled_back", "item": response}
+
     def _request_json(
         self,
         method: str,
@@ -697,6 +794,8 @@ class AlphonseClient:
             if payload.get("device_id") is not None:
                 return payload
             if payload.get("chat_id") is not None:
+                return payload
+            if payload.get("template_id") is not None:
                 return payload
         return None
 
