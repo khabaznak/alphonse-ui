@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+  <div class="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Telegram Invites</div>
+
+  {% if notice %}
+  <div class="mb-3 rounded-lg border border-emerald-700/40 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-200">{{ notice }}</div>
+  {% endif %}
+  {% if error %}
+  <div class="mb-3 rounded-lg border border-rose-700/40 bg-rose-950/40 px-3 py-2 text-sm text-rose-200">{{ error }}</div>
+  {% endif %}
+
+  <div class="mb-4 grid gap-3 xl:grid-cols-2">
+    <form method="get" action="/telegram/invites" class="space-y-2 rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+      <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Fetch Invites</div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">chat_id</span>
+          <input name="chat_id" type="text" value="{{ selected_chat_id }}" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">status</span>
+          <select name="status" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100">
+            <option value="" {% if not selected_status %}selected{% endif %}>any</option>
+            <option value="pending" {% if selected_status == "pending" %}selected{% endif %}>pending</option>
+            <option value="approved" {% if selected_status == "approved" %}selected{% endif %}>approved</option>
+            <option value="rejected" {% if selected_status == "rejected" %}selected{% endif %}>rejected</option>
+          </select>
+        </label>
+      </div>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <label class="block space-y-1">
+          <span class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">limit</span>
+          <input name="limit" type="number" min="1" max="1000" value="{{ selected_limit }}" class="w-full rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1.5 text-sm text-slate-100" />
+        </label>
+      </div>
+      <button class="inline-flex items-center rounded-md border border-slate-600 bg-slate-800 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-slate-100 hover:bg-slate-700" type="submit">Refresh</button>
+    </form>
+
+    {% if selected_invite %}
+    <div class="rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+      <div class="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Selected Invite</div>
+      <pre class="max-h-48 overflow-auto rounded border border-slate-800 bg-slate-900/60 p-2 text-xs text-slate-300">{{ selected_invite }}</pre>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if invites %}
+  <div class="space-y-2">
+    {% for item in invites %}
+    {% set cid = item.get("chat_id") or item.get("id") %}
+    {% set display = item.get("display_name") or item.get("name") or item.get("username") or item.get("title") or "Unknown chat" %}
+    <article class="rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+      <div class="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <div class="text-sm text-slate-100">{{ display }}{% if cid %} · {{ cid }}{% endif %}</div>
+          <div class="mt-1 text-xs text-slate-400">status: {{ item.get("status") or "unknown" }}</div>
+          {% if item.get("created_at") %}
+          <div class="mt-1 text-xs text-slate-500">created_at: {{ item.get("created_at") }}</div>
+          {% endif %}
+        </div>
+        {% if cid %}
+        <form method="post" action="/telegram/invites/{{ cid|urlencode }}/status" class="flex items-center gap-2">
+          <select name="status" class="rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1 text-xs text-slate-100">
+            <option value="approved">approve</option>
+            <option value="rejected">reject</option>
+          </select>
+          <button class="inline-flex items-center rounded-md border border-emerald-700/70 bg-emerald-900/60 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-100 hover:bg-emerald-800/70" type="submit">Update</button>
+        </form>
+        {% endif %}
+      </div>
+      <pre class="mt-2 max-h-36 overflow-auto rounded border border-slate-800 bg-slate-900/60 p-2 text-xs text-slate-500">{{ item }}</pre>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="rounded-lg border border-slate-800 bg-slate-950/50 p-3 text-sm text-slate-500">No telegram invites found.</div>
+  {% endif %}
+</section>
+{% endblock %}

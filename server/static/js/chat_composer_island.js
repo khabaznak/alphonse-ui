@@ -1,4 +1,10 @@
 (function () {
+  const scrollTimeline = () => {
+    const timeline = document.getElementById("chat-timeline");
+    if (!timeline) return;
+    timeline.scrollTop = timeline.scrollHeight;
+  };
+
   const mount = (scope) => {
     const form =
       scope && scope.matches && scope.matches("form.composer")
@@ -41,8 +47,16 @@
   };
 
   mount(document);
+  scrollTimeline();
 
   document.body.addEventListener("htmx:load", (event) => {
     mount(event.target);
+  });
+
+  document.body.addEventListener("htmx:afterSwap", (event) => {
+    const target = event.detail && event.detail.target;
+    if (!target) return;
+    if (target.id !== "chat-timeline") return;
+    requestAnimationFrame(scrollTimeline);
   });
 })();

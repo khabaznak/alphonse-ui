@@ -175,6 +175,7 @@ def nav_sections() -> List[Dict[str, object]]:
                 {"label": "Locations", "path": "/locations"},
                 {"label": "Device Locations", "path": "/device-locations"},
                 {"label": "API Keys", "path": "/tool-configs"},
+                {"label": "Telegram Invites", "path": "/telegram/invites"},
             ],
         },
         {
@@ -724,6 +725,39 @@ def users_delete(user_id: str) -> Response:
     if not result.get("ok"):
         return redirect(url_for("users", notice="", error=f"User {user_id} not found"))
     return redirect(url_for("users", notice=f"Deleted user {user_id}", error=""))
+
+
+@app.get("/telegram/invites")
+def telegram_invites() -> str:
+    limit = _query_int(request.args.get("limit"), default=200, min_value=1, max_value=1000)
+    status = (request.args.get("status") or "").strip()
+    invites = ALPHONSE.list_telegram_invites(status=status or None, limit=limit) or []
+    selected_chat_id = (request.args.get("chat_id") or "").strip()
+    selected_invite = None
+    if selected_chat_id:
+        selected_invite = ALPHONSE.get_telegram_invite(selected_chat_id)
+    return render_template(
+        "telegram_invites.html",
+        invites=invites,
+        selected_chat_id=selected_chat_id,
+        selected_invite=selected_invite,
+        selected_limit=limit,
+        selected_status=status,
+        notice=(request.args.get("notice") or "").strip(),
+        error=(request.args.get("error") or "").strip(),
+        **page_context("Telegram Invites"),
+    )
+
+
+@app.post("/telegram/invites/<path:chat_id>/status")
+def telegram_invite_status(chat_id: str) -> Response:
+    status = (request.form.get("status") or "").strip()
+    if not status:
+        return redirect(url_for("telegram_invites", notice="", error="status is required"))
+    result = ALPHONSE.update_telegram_invite_status(chat_id, status)
+    if not result.get("ok"):
+        return redirect(url_for("telegram_invites", notice="", error=f"Failed to update invite {chat_id}"))
+    return redirect(url_for("telegram_invites", notice=f"Updated invite {chat_id}", error=""))
 
 
 @app.get("/delegates")

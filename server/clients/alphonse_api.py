@@ -535,6 +535,51 @@ class AlphonseClient:
         )
         return self._extract_items_list(response)
 
+    def list_telegram_invites(
+        self,
+        status: Optional[str] = None,
+        limit: int = 200,
+    ) -> Optional[List[Dict[str, object]]]:
+        params = {"limit": max(1, min(limit, 1000))}
+        if status and status.strip():
+            params["status"] = status.strip()
+        response = self._request_json(
+            "GET",
+            f"/agent/telegram/invites?{urlencode(params)}",
+            payload=None,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        return self._extract_items_list(response)
+
+    def get_telegram_invite(self, chat_id: str) -> Optional[Dict[str, object]]:
+        encoded = quote(chat_id, safe="")
+        response = self._request_json(
+            "GET",
+            f"/agent/telegram/invites/{encoded}",
+            payload=None,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        return self._extract_item(response)
+
+    def update_telegram_invite_status(self, chat_id: str, status: str) -> Dict[str, object]:
+        encoded = quote(chat_id, safe="")
+        payload = {"status": status}
+        response = self._request_json(
+            "POST",
+            f"/agent/telegram/invites/{encoded}/status",
+            payload=payload,
+            timeout=5.0,
+            unwrap_data=False,
+        )
+        if not isinstance(response, dict):
+            return {"ok": False, "status": "unavailable"}
+        item = response.get("item")
+        if isinstance(item, dict):
+            return {"ok": True, "status": "updated", "item": item}
+        return {"ok": True, "status": "updated", "item": response}
+
     def get_tool_config(self, config_id: str) -> Optional[Dict[str, object]]:
         encoded = quote(config_id, safe="")
         response = self._request_json(
@@ -650,6 +695,8 @@ class AlphonseClient:
             if payload.get("location_id") is not None:
                 return payload
             if payload.get("device_id") is not None:
+                return payload
+            if payload.get("chat_id") is not None:
                 return payload
         return None
 
