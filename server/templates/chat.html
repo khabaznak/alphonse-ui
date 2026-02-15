@@ -32,6 +32,23 @@
           </div>
         </div>
       </label>
+      <div class="voice-controls rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+        <div class="flex flex-wrap items-center gap-3">
+          <button
+            class="inline-flex items-center rounded-md border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-100 hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+            type="button"
+            data-role="voice-toggle"
+          >
+            🎙️ Hablar
+          </button>
+          <label class="inline-flex items-center gap-2 text-xs text-slate-200">
+            <input class="h-4 w-4 rounded border-slate-600 bg-slate-900 text-slate-200" type="checkbox" name="audio_mode_local" />
+            <span>Responder por local audio</span>
+          </label>
+          <span class="text-xs text-slate-400" data-role="voice-status">Waiting</span>
+        </div>
+        <p class="mt-2 hidden text-xs text-rose-400" data-role="voice-error"></p>
+      </div>
       <input type="hidden" name="correlation_id" value="" />
     </form>
   </section>
