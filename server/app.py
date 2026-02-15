@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import json
-import os
 import threading
 import time
-import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 from flask import Flask, Response, jsonify, redirect, render_template, request, url_for
 from server.clients.alphonse_api import AlphonseClient
@@ -85,9 +82,6 @@ UI_EVENT_TYPES = {
     "command_received": "ui.command.received",
     "command_failed": "ui.command.failed",
 }
-VOICE_ASSET_DIR = Path(
-    os.getenv("ALPHONSE_UI_AUDIO_ASSET_DIR", "/tmp/alphonse-ui-audio-assets")
-).expanduser()
 
 
 def now_iso() -> str:
@@ -106,6 +100,71 @@ def _resolve_async_assistant_reply(
     args: Optional[Dict[str, object]] = None,
 ) -> None:
     dispatch = ALPHONSE.send_message(content, correlation_id, args=args)
+    reply_text = "Alphonse is unavailable."
+    if dispatch.get("ok"):
+        response_data = dispatch.get("data")
+        if isinstance(response_data, dict):
+            maybe_message = response_data.get("message")
+            if isinstance(maybe_message, str) and maybe_message.strip():
+                reply_text = maybe_message
+    with CHAT_TIMELINE_LOCK:
+        for entry in reversed(CHAT_TIMELINE):
+            if entry.get("type") != "message":
+                continue
+            candidate = entry.get("message")
+            if not isinstance(candidate, ChatMessage):
+                continue
+            if candidate.correlation_id != correlation_id or candidate.role != "assistant":
+                continue
+            candidate.content = reply_text
+            candidate.timestamp = now_iso()
+            return
+        CHAT_TIMELINE.append(
+            {
+                "type": "message",
+                "message": ChatMessage(
+                    role="assistant",
+                    content=reply_text,
+                    timestamp=now_iso(),
+                    correlation_id=correlation_id,
+                ),
+            }
+        )
+
+
+def _resolve_async_asset_assistant_reply(
+    *,
+    correlation_id: str,
+    asset_id: str,
+    audio_mode: str,
+    provider: str,
+    channel: str,
+) -> None:
+    app.logger.info(
+        "voice.message_payload correlation_id=%s provider=%s channel=%s content.type=asset content.assets[0].asset_id=%s content.assets[0].kind=audio controls.audio_mode=%s",
+        correlation_id,
+        provider,
+        channel,
+        asset_id,
+        audio_mode,
+    )
+    dispatch = ALPHONSE.send_asset_message(
+        correlation_id=correlation_id,
+        asset_id=asset_id,
+        audio_mode=audio_mode,
+        provider=provider,
+        channel=channel,
+        kind="audio",
+    )
+    app.logger.info(
+        "voice.message_dispatched correlation_id=%s provider=%s channel=%s asset_id=%s ok=%s",
+        correlation_id,
+        provider,
+        channel,
+        asset_id,
+        bool(dispatch.get("ok")),
+    )
+
     reply_text = "Alphonse is unavailable."
     if dispatch.get("ok"):
         response_data = dispatch.get("data")
@@ -172,58 +231,11 @@ def _append_chat_turn(user_content: str, correlation_id: str) -> List[Dict[str, 
         return list(CHAT_TIMELINE)
 
 
-def _guess_audio_extension(filename: str, mimetype: str) -> str:
-    lowered = (filename or "").lower()
-    if lowered.endswith(".ogg"):
-        return ".ogg"
-    if lowered.endswith(".mp3"):
-        return ".mp3"
-    if lowered.endswith(".wav"):
-        return ".wav"
-    if lowered.endswith(".m4a"):
-        return ".m4a"
-    if lowered.endswith(".mp4"):
-        return ".mp4"
-    if "ogg" in mimetype:
-        return ".ogg"
-    if "wav" in mimetype:
-        return ".wav"
-    if "mpeg" in mimetype or "mp3" in mimetype:
-        return ".mp3"
-    if "mp4" in mimetype:
-        return ".mp4"
-    if "m4a" in mimetype:
-        return ".m4a"
-    return ".webm"
-
-
 def _parse_audio_mode(value: Optional[str]) -> str:
     normalized = (value or "").strip().lower()
     if normalized in {"local_audio", "local", "true", "1", "on"}:
         return "local_audio"
-    return "text"
-
-
-def _store_audio_asset(correlation_id: str, provider: str, channel: str) -> Optional[Dict[str, Any]]:
-    upload = request.files.get("audio")
-    if upload is None:
-        return None
-    VOICE_ASSET_DIR.mkdir(parents=True, exist_ok=True)
-    asset_id = f"asset-{uuid.uuid4().hex}"
-    extension = _guess_audio_extension(upload.filename or "", upload.mimetype or "")
-    asset_path = VOICE_ASSET_DIR / f"{asset_id}{extension}"
-    upload.save(asset_path)
-    size_bytes = asset_path.stat().st_size
-    return {
-        "asset_id": asset_id,
-        "path": str(asset_path),
-        "filename": asset_path.name,
-        "mime_type": upload.mimetype or "application/octet-stream",
-        "size_bytes": size_bytes,
-        "provider": provider,
-        "channel": channel,
-        "correlation_id": correlation_id,
-    }
+    return "none"
 
 
 def nav_sections() -> List[Dict[str, object]]:
@@ -1344,46 +1356,65 @@ def chat_voice() -> Response:
     correlation_id = ensure_correlation_id(request.form.get("correlation_id"))
     provider = (request.form.get("provider") or "").strip() or "webui"
     channel = (request.form.get("channel") or "").strip() or "webui"
-    asset = _store_audio_asset(correlation_id, provider=provider, channel=channel)
-    if asset is None:
+    upload = request.files.get("audio")
+    if upload is None:
         response = jsonify({"ok": False, "error": "missing_audio", "correlation_id": correlation_id})
         response.status_code = 400
         response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["command_failed"]
         return with_contract_headers(response, correlation_id, ok=False)
 
+    blob = upload.read()
+    if not blob:
+        response = jsonify({"ok": False, "error": "empty_audio", "correlation_id": correlation_id})
+        response.status_code = 400
+        response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["command_failed"]
+        return with_contract_headers(response, correlation_id, ok=False)
+
+    uploaded = ALPHONSE.upload_asset(
+        content=blob,
+        filename=upload.filename or "voice.webm",
+        mime_type=upload.mimetype or "application/octet-stream",
+        correlation_id=correlation_id,
+        provider=provider,
+        channel=channel,
+        kind="audio",
+    )
+    if not uploaded.get("ok"):
+        response = jsonify({"ok": False, "error": "asset_upload_failed", "correlation_id": correlation_id})
+        response.status_code = 502
+        response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["command_failed"]
+        return with_contract_headers(response, correlation_id, ok=False)
+
+    asset_id_raw = uploaded.get("asset_id")
+    if not isinstance(asset_id_raw, str) or asset_id_raw == "":
+        response = jsonify({"ok": False, "error": "asset_id_missing", "correlation_id": correlation_id})
+        response.status_code = 502
+        response.headers["X-UI-Event-Type"] = UI_EVENT_TYPES["command_failed"]
+        return with_contract_headers(response, correlation_id, ok=False)
+    asset_id = asset_id_raw
+
+    app.logger.info(
+        "voice.asset_uploaded correlation_id=%s provider=%s channel=%s asset_id=%s bytes=%s",
+        correlation_id,
+        provider,
+        channel,
+        asset_id,
+        len(blob),
+    )
+
     audio_mode = _parse_audio_mode(request.form.get("audio_mode"))
-    content = f"[voice] asset={asset['asset_id']}"
+    content = f"[voice] asset={asset_id}"
     _append_chat_turn(content, correlation_id)
 
-    incoming_envelope = {
-        "type": "incoming_message",
-        "provider": provider,
-        "channel": channel,
-        "message": {
-            "type": "audio",
-            "text": "",
-            "asset": {
-                "asset_id": asset["asset_id"],
-                "filename": asset["filename"],
-                "mime_type": asset["mime_type"],
-                "size_bytes": asset["size_bytes"],
-                "path": asset["path"],
-            },
-        },
-        "controls": {"audio_mode": audio_mode},
-        "correlation_id": correlation_id,
-        "timestamp": now_iso(),
-    }
-    args: Dict[str, object] = {
-        "provider": provider,
-        "channel": channel,
-        "controls": {"audio_mode": audio_mode},
-        "incoming_envelope": incoming_envelope,
-    }
-
     worker = threading.Thread(
-        target=_resolve_async_assistant_reply,
-        args=(content, correlation_id, args),
+        target=_resolve_async_asset_assistant_reply,
+        kwargs={
+            "correlation_id": correlation_id,
+            "asset_id": asset_id,
+            "audio_mode": audio_mode,
+            "provider": provider,
+            "channel": channel,
+        },
         daemon=True,
     )
     worker.start()
@@ -1394,7 +1425,7 @@ def chat_voice() -> Response:
             "status": "accepted",
             "correlation_id": correlation_id,
             "message_id": correlation_id,
-            "asset_id": asset["asset_id"],
+            "asset_id": asset_id,
             "provider": provider,
             "channel": channel,
             "audio_mode": audio_mode,

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import time
+import uuid
 from typing import Any, Dict, List, Optional
 from urllib import error, request as urlrequest
 from urllib.parse import quote, urlencode
@@ -41,6 +42,100 @@ class AlphonseClient:
         if not self._valid_message_response(data):
             return {"ok": False, "status": "unavailable", "correlation_id": correlation_id}
         return {"ok": True, "status": "accepted", "correlation_id": correlation_id, "data": data}
+
+    def send_asset_message(
+        self,
+        *,
+        correlation_id: str,
+        asset_id: str,
+        audio_mode: str,
+        provider: str = "webui",
+        channel: str = "webui",
+        kind: str = "audio",
+    ) -> Dict[str, object]:
+        payload = {
+            "provider": provider,
+            "channel": channel,
+            "target": channel,
+            "text": "",
+            "content": {
+                "type": "asset",
+                "assets": [{"asset_id": asset_id, "kind": kind}],
+            },
+            "controls": {"audio_mode": audio_mode},
+            "timestamp": int(time.time()),
+            "correlation_id": correlation_id,
+            "metadata": {"user_name": self._default_user_name()},
+        }
+        data = self._request_json(
+            "POST",
+            "/agent/message",
+            payload=payload,
+            timeout=self.message_timeout,
+            unwrap_data=False,
+        )
+        if not self._valid_message_response(data):
+            return {"ok": False, "status": "unavailable", "correlation_id": correlation_id}
+        return {"ok": True, "status": "accepted", "correlation_id": correlation_id, "data": data}
+
+    def upload_asset(
+        self,
+        *,
+        content: bytes,
+        filename: str,
+        mime_type: str,
+        correlation_id: str,
+        provider: str = "webui",
+        channel: str = "webui",
+        kind: str = "audio",
+    ) -> Dict[str, object]:
+        boundary = f"----alphonse-ui-{uuid.uuid4().hex}"
+        safe_filename = (filename or "voice.webm").replace('"', "_")
+
+        fields = {
+            "provider": provider,
+            "channel": channel,
+            "target": channel,
+            "kind": kind,
+        }
+        body = bytearray()
+        for key, value in fields.items():
+            body.extend(f"--{boundary}\r\n".encode("utf-8"))
+            body.extend(f'Content-Disposition: form-data; name="{key}"\r\n\r\n'.encode("utf-8"))
+            body.extend(str(value).encode("utf-8"))
+            body.extend(b"\r\n")
+
+        body.extend(f"--{boundary}\r\n".encode("utf-8"))
+        body.extend(
+            (
+                f'Content-Disposition: form-data; name="file"; filename="{safe_filename}"\r\n'
+                f"Content-Type: {mime_type or 'application/octet-stream'}\r\n\r\n"
+            ).encode("utf-8")
+        )
+        body.extend(content)
+        body.extend(b"\r\n")
+        body.extend(f"--{boundary}--\r\n".encode("utf-8"))
+
+        response = self._request_json_with_body(
+            "POST",
+            "/agent/assets",
+            body=bytes(body),
+            content_type=f"multipart/form-data; boundary={boundary}",
+            timeout=self.message_timeout,
+            unwrap_data=False,
+        )
+        if not isinstance(response, dict):
+            return {"ok": False, "status": "unavailable", "correlation_id": correlation_id}
+        asset_id = response.get("asset_id")
+        if not isinstance(asset_id, str) or not asset_id.strip():
+            return {"ok": False, "status": "invalid_response", "correlation_id": correlation_id, "data": response}
+        return {
+            "ok": True,
+            "status": "uploaded",
+            "correlation_id": correlation_id,
+            "asset_id": asset_id,
+            "data": response,
+        }
 
     def presence_snapshot(self) -> Dict[str, str]:
         data = self._request_json("GET", "/agent/status", payload=None, timeout=3.0)
@@ -730,6 +825,38 @@ class AlphonseClient:
         req.add_header("Accept", "application/json")
         if payload is not None:
             req.add_header("Content-Type", "application/json")
+        if self.api_token:
+            req.add_header("x-alphonse-api-token", self.api_token)
+        try:
+            with urlrequest.urlopen(req, timeout=timeout) as resp:
+                raw = resp.read().decode("utf-8")
+                parsed = json.loads(raw)
+                if isinstance(parsed, dict):
+                    if unwrap_data:
+                        data = parsed.get("data")
+                        if data is not None:
+                            return data
+                    return parsed
+                if isinstance(parsed, list):
+                    return parsed
+        except (error.URLError, error.HTTPError, TimeoutError, json.JSONDecodeError):
+            return None
+        return None
+
+    def _request_json_with_body(
+        self,
+        method: str,
+        path: str,
+        body: Optional[bytes],
+        content_type: Optional[str],
+        timeout: Optional[float],
+        unwrap_data: bool = True,
+    ) -> Optional[Any]:
+        url = f"{self.base_url}{path}"
+        req = urlrequest.Request(url, data=body, method=method)
+        req.add_header("Accept", "application/json")
+        if content_type:
+            req.add_header("Content-Type", content_type)
         if self.api_token:
             req.add_header("x-alphonse-api-token", self.api_token)
         try:

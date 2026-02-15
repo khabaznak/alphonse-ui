@@ -135,7 +135,7 @@
       const correlationId = `ui-${Date.now()}`;
       const formData = new FormData();
       formData.append("audio", blob, fileNameForMime(mimeType));
-      formData.append("audio_mode", audioModeToggle.checked ? "local_audio" : "text");
+      formData.append("audio_mode", audioModeToggle.checked ? "local_audio" : "none");
       formData.append("correlation_id", correlationId);
       formData.append("provider", "webui");
       formData.append("channel", "webui");
